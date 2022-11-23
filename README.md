@@ -31,7 +31,7 @@ Make sure these libraries are installed in the `/lib` folder of the MagTag. The 
 - adafruit_display_shapes.rect 
 - adafruit_datetime 
 - adafruit_requests
-- adafruit_io.adafruit_io
+- adafruit_io
 - adafruit_lis3dh
 - neopixel
 
