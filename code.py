@@ -206,27 +206,28 @@ def wc_schedule(matches_today):
 
 # This function parses information on the current match.
 def match_stats(current_match):
-    #try:
-    home_team = current_match[0]['home_team_country']
-    away_team = current_match[0]['away_team_country']
-    match_time = current_match[0]['time']
+    try:
+        home_team = current_match[0]['home_team_country']
+        away_team = current_match[0]['away_team_country']
+        match_time = current_match[0]['time']
+        
+        home_team_goals = current_match[0]['home_team']['goals']
+        away_team_goals = current_match[0]['away_team']['goals']
+        
+        match_title = ('{} vs. {} - [{}]'.format(
+            home_team, away_team, match_time))
+        match_title = ('{:^37}'.format(match_title))
+        match_score = ('{!s:>3} - {!s:<3}'.format(
+                        current_match[0]['home_team']['goals'],
+                        current_match[0]['away_team']['goals']                
+                       ))
+        match_score = ('{:^14}'.format(match_score))
     
-    home_team_goals = current_match[0]['home_team']['goals']
-    away_team_goals = current_match[0]['away_team']['goals']
-    
-    match_title = ('{} vs. {} - [{}]'.format(
-        home_team, away_team, match_time))
-    match_title = ('{:^37}'.format(match_title))
-    match_score = ('{!s:>3} - {!s:<3}'.format(
-                    current_match[0]['home_team']['goals'],
-                    current_match[0]['away_team']['goals']                
-                   ))
-    match_score = ('{:^14}'.format(match_score))
-    '''
     except:
-        match_title = '\n{:^36}'.format('No Game')
-        match_score = ' '
-    '''
+        match_title = '{:^39}'.format('No Game')
+        match_score = ('{!s:>3} {!s:<3}'.format('-', '-'))
+        match_score = ('{:^16}'.format(match_score))
+    
     
     return(match_title, match_score)
 
@@ -267,11 +268,7 @@ def wc_current():
     
     print("{}matches/current\n".format(WORLD_CUP))
     current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
-    # matches_today.close()
     
-    # current_match = current_match.json()
-    print(current_match.json)
-
     match_title, match_score = match_stats(current_match.json())
     
     return(match_title, match_score)
@@ -317,7 +314,7 @@ def main_program():
 
 # Comment out for test mode and use cached JSON files.
 # choice= option to choose what SSID to connect with.
-# wifi_connect(choice=0)
+wifi_connect(choice=0)
 
 x, y, z, battery = update_data()
 
