@@ -2,8 +2,8 @@
 
 Switch between Today's Schedule and Live Match score by rotating the MagTag.
 
-![IMG_2312](https://user-images.githubusercontent.com/8409805/203648243-85a74bee-1288-4463-95c3-f96e61c6a3a4.jpeg)
-![IMG_2313](https://user-images.githubusercontent.com/8409805/203648267-53d0cadf-920a-439d-9eb9-6d03141989c4.jpeg)
+![upsideup](upsideup.jpg)
+![upsidedown](upsidedown.jpg)
 
 This script uses the amazing [World Cup JSON](https://github.com/estiens/world_cup_json) to get its information. For now, the Live Match page only shows the current scores. In-game stats will be added when they become available on the JSON. Looks like it'll be [happening soon](https://github.com/estiens/world_cup_json/issues/210#issuecomment-1325489429).
 
