@@ -1,16 +1,5 @@
 
-# https://learn.adafruit.com/circuitpython-essentials/circuitpython-essentials
-# https://learn.adafruit.com/creating-magtag-projects-with-circuitpython
-
-# Playing with Time NTP
 #
-# https://io.adafruit.com/mrrmay/services/time
-# https://docs.circuitpython.org/projects/ntp/en/latest/index.html
-# https://docs.circuitpython.org/projects/adafruitio/en/latest/api.html#adafruit_io.adafruit_io.IO_HTTP.receive_time
-# https://docs.circuitpython.org/projects/adafruitio/en/latest/api.html#adafruit_io.adafruit_io.IO_MQTT.subscribe_to_time
-# https://docs.circuitpython.org/en/latest/shared-bindings/time/
-# https://docs.circuitpython.org/en/latest/shared-bindings/rtc/index.html
-# https://docs.circuitpython.org/projects/datetime/en/latest/ 
 
 # built-in modules
 import gc
@@ -24,9 +13,6 @@ import board
 import busio
 from digitalio import DigitalInOut, Direction, Pull, DriveMode
 from analogio import AnalogIn
-# from analogio import AnalogOut
-# import pwmio
-# import touchio
 import displayio
 import terminalio
 import ssl
@@ -51,8 +37,11 @@ from secrets import secrets
 import adafruit_lis3dh
 import neopixel
 
+# Change these to meet your location
 TIME_ZONE_NAME = 'PST'
 TIME_ZONE_OFFSET = -8
+
+# For future, change to timezone of cup host
 QATAR_TIME = 3
 
 
@@ -65,24 +54,11 @@ NP_POWER.switch_to_output(True)  # OFF = True, ON = False
 
 # set up hardware
 lis = adafruit_lis3dh.LIS3DH_I2C(i2c, address=0x19)
-# light_sensor = AnalogIn(board.LIGHT)
 voltage_pin = AnalogIn(board.VOLTAGE_MONITOR)
-# led = DigitalInOut(board.D13)
-# led.switch_to_output(True)
 pixels = neopixel.NeoPixel(board.NEOPIXEL, 4, brightness=1, auto_write=True)
 
 
-'''
-# Simple Signal 
-def led_signal(flashes=3, interval=0.15, time_off=1):
-    NP_POWER.switch_to_output(False)
-
-    for i in range(flashes):
-        led.value = True
-        atime.sleep(interval)
-        led.value = False
-        atime.sleep(interval * time_off)
-'''
+# Useful functions
 def np_signal(color=0x220000, flashes=3, interval=.15, time_off=1):
     NP_POWER.switch_to_output(False)
     for i in range(flashes):
@@ -92,27 +68,11 @@ def np_signal(color=0x220000, flashes=3, interval=.15, time_off=1):
         pixels.fill(0)
 
 
-def rand_num(digits=0):    
-    new_num = []
-    the_num = ''
-    
-    if digits == 0:
-        digits = random.randint(1,9)
-    else:
-        pass
-
-    for i in range(digits):
-        rnum = random.randint(0, 9)
-        new_num.append(rnum)
-    for i in range(digits):
-        the_num = (the_num + str(new_num[i]))
-    return(int(the_num))
-
-
 # Time Functions ------------------
-    
-def local_time(hours = 0, minutes = 0, seconds = 0):
-    
+
+# Adafruit delivers time based on user's IP.
+# This function helps move time between time zones.
+def local_time(hours = 0, minutes = 0, seconds = 0):    
     dt_current_time = datetime.fromtimestamp(atime.time()) # update the datetime object
     show_date = dt_current_time + timedelta(hours = hours, minutes = minutes, seconds = seconds) 
     times = {
@@ -124,16 +84,17 @@ def local_time(hours = 0, minutes = 0, seconds = 0):
         }    
     return(times)
 
-
-def ts():  # POSIX / Unix Timestamp, always GMT.
+# POSIX / Unix Timestamp, always GMT.
+# Uses TIME_ZONE_OFFSET to get GMT/UTC/Zulu time.
+def ts():  
     now_time = local_time(hours = (-1 * TIME_ZONE_OFFSET), minutes = 0, seconds = 0)
     return(now_time['ts'])
 
 
 # Network Functions ------------------
-
-ssid = [secrets["ssid"], secrets["ssid_supergrover"], secrets["ssid_momdad"]]
-password = [secrets["password"], secrets["password_supergrover"], secrets["password_momdad"]]
+# See sample secrets.py file for details.
+ssid = [secrets["ssid_1"], secrets["ssid_2"], secrets["ssid_3"]]
+password = [secrets["password_1"], secrets["password_2"], secrets["password_3"]]
 
 def wifi_connect(choice=0):
     # Connect to local network
@@ -213,27 +174,18 @@ def update_data():
 
 
 # World Cup functions
-
+# Function to build schedule text for MagTag display
 def wc_schedule(matches_today):
-    # JSON times are Zulu/UTC
+    # JSON times are Zulu/UTC/GMT
     # Device is set to local time
-    # TIME_ZONE_NAME = 'PST'
-    # TIME_ZONE_OFFSET = -8
-    # QATAR_TIME = 3
     
-    
-    # Set title to display Zulu/UTC Time (match JSON time)
+    # Set title to display Zulu/UTC Time (matches JSON time)
     title_date = local_time(hours = (-1 * TIME_ZONE_OFFSET))
     title_date = title_date['iso']
-    
-    # Set title to display Qatar Time
-    # title_date = local_time(hours = (-1 * TIME_ZONE_OFFSET) + QATAR_TIME)
-    # title_date = title_date['iso']
 
     dt = (datetime.fromisoformat(title_date) +
            timedelta(hours = 0))
     title_date = (dt.ctime()[0:10])
-    top_guide = ('123456789-123456789-123456789-123456789-123456789\n ')
     
     the_schedule = ''
     page_title = ('{}\n'.format(title_date))
@@ -250,14 +202,12 @@ def wc_schedule(matches_today):
             i['away_team']['country'],
             i['away_team']['goals'],
             ))
-        
-        # the_schedule = page_title + the_schedule
     
     return(the_schedule, page_title)
 
 def wc_test_data():
+    # This is simply the output from the API for testing.
     # https://worldcupjson.net/matches/today
-    # matches_today = matches_today.json()
     
     try:
         with open("wc_test_data.json", "r") as fp:
@@ -272,11 +222,8 @@ def wc_test_data():
 
     return(the_schedule, page_title)
 
-
-def world_cup():    
-    # pool = socketpool.SocketPool(wifi.radio)
-    # requests = aio_requests.Session(pool, ssl.create_default_context())
-    
+# This function GETs today's schedule (in GMT times).
+def world_cup():
     WORLD_CUP = 'https://worldcupjson.net/'
     
     # Fetching World Cup Today
@@ -290,7 +237,7 @@ def world_cup():
     the_schedule = wc_schedule(matches_today)
     return(the_schedule)
 
-# Match Now
+# This function GETs information on the current match.
 def match_now(current_match):
     # try:
     home_team = current_match[0]['home_team_country']
@@ -325,7 +272,8 @@ def match_now(current_match):
         match_score = ' - -'
     '''
     return(match_title, match_score)
-    
+
+# This function uses an API dump from a running game for test.
 def wc_now_test():
     try:
         with open("wc_current_match.json", "r") as fp:
@@ -340,6 +288,7 @@ def wc_now_test():
 
     return(match_title, match_score)
 
+# Function GETs current game stats.
 def wc_now():    
     # pool = socketpool.SocketPool(wifi.radio)
     # requests = aio_requests.Session(pool, ssl.create_default_context())
@@ -359,22 +308,25 @@ def wc_now():
     
     return(match_title, match_score)
 
+
 # ------ Main Program ------
 
 def main_program():
     return
 
-# Comment out for test mode
-# wifi_connect(choice=0)
+# Comment out for test mode and use cached JSON files.
+# choice= option to choose what SSID to connect with.
+wifi_connect(choice=0)
 
 x, y, z, battery = update_data()
 
-# Rotation determines what screen to display and refresh time
+# Rotation determines what screen to display and refresh_time
+#TODO a vertical orientation to display favorite team details.
 if y < 0:
     game_on = True  # Display live score
     DISPLAY_ROTATION = 90
     #TODO refresh every 2 minutes for current match.
-    refresh_time = 120
+    refresh_time = 120  # seconds
 else:
     game_on = False  # Display schedule
     DISPLAY_ROTATION = 270
@@ -393,8 +345,8 @@ print('x:{} y:{} z:{}'.format(x, y, z))
 
 
 # WiFi Setup ------------------
-
-if wifi.radio.ipv4_gateway is None:  # Use test data 
+# Use test data 
+if wifi.radio.ipv4_gateway is None:  
 
     now_time = local_time()
     now_time = now_time['iso']
@@ -410,7 +362,7 @@ if wifi.radio.ipv4_gateway is None:  # Use test data
         match_title, match_score = wc_now_test() 
     print('Using test data.\n')
 
-else:
+else:  # use live data
     
     pool = socketpool.SocketPool(wifi.radio)
     requests = aio_requests.Session(pool, ssl.create_default_context())
@@ -461,18 +413,8 @@ else:
     now_time = local_time()
     print('The current datetime is: {}, ({})'.format(now_time['iso'], ts()))
     '''
-    # receive_time()
-    # Signal that WiFi, NTP and MQTT are working
-    colors = [0x110900, 0x001111, 0x110011]
-    flashes = 1
-    interval = 0.5
-    time_off = 0.1
-    for i in range(len(colors)):
-        np_signal(color=colors[i], flashes=flashes,
-                  interval=interval, time_off=time_off)
     
     # AIO Time
-    
     # Initialize an Adafruit IO HTTP API object
     io = IO_HTTP(secrets["aio_username"], secrets["aio_key"], requests)
     # io = IO_HTTP(aio_username, aio_key, requests)
@@ -537,9 +479,6 @@ display.show(main_group)
 
 # Font definition. You can choose any two fonts available in your system
 SPARTAN_BOLD = bitmap_font.load_font("fonts/LeagueSpartan-Bold-16.bdf")
-SPARTAN_LIGHT = bitmap_font.load_font("fonts/LeagueSpartan-Light.bdf")
-HELVETICA_16 = bitmap_font.load_font("fonts/Helvetica-Bold-16.bdf")
-HELVETICA_100 = bitmap_font.load_font("fonts/Helvetica-Bold-100.bdf")
 TERMINAL_FONT = terminalio.FONT
 
 rect = Rect(0, 0, 296, 128, fill=0xFFFFFF, outline=0xFFFFFF)
@@ -611,6 +550,16 @@ display.show(main_group)
 
 # refresh display
 try_refresh()
+
+
+# Signal that screen has been updated
+colors = [0x110900, 0x001111, 0x110011]
+flashes = 1
+interval = 0.5
+time_off = 0.1
+for i in range(len(colors)):
+    np_signal(color=colors[i], flashes=flashes,
+              interval=interval, time_off=time_off)
 
 print('\nscreen refreshed\ngoing to sleep for {:0.0f} minutes.'.format(refresh_time/60))
 
