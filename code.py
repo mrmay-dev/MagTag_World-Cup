@@ -205,30 +205,29 @@ def wc_schedule(matches_today):
     return(the_schedule, page_title)
 
 # This function parses information on the current match.
-def match_now(current_match):
-    #try:
-    home_team = current_match[0]['home_team_country']
-    away_team = current_match[0]['away_team_country']
-    match_time = current_match[0]['time']
+def match_stats(current_match):
+    try:
+        home_team = current_match[0]['home_team_country']
+        away_team = current_match[0]['away_team_country']
+        match_time = current_match[0]['time']
+        
+        home_team_goals = current_match[0]['home_team']['goals']
+        away_team_goals = current_match[0]['away_team']['goals']
+        
+        match_title = ('{} vs. {} - [{}]'.format(
+            home_team, away_team, match_time))
+        match_title = ('{:^37}'.format(match_title))
+        match_score = ('{!s:>3} - {!s:<3}'.format(
+                        current_match[0]['home_team']['goals'],
+                        current_match[0]['away_team']['goals']                
+                       ))
+        match_score = ('{:^14}'.format(match_score))
     
-    home_team_goals = current_match[0]['home_team']['goals']
-    away_team_goals = current_match[0]['away_team']['goals']
-    
-    match_title = ('({}){} vs. {}({}) - [{}]'.format(
-        home_team_goals, home_team, away_team, away_team_goals, match_time))
-    match_score = ('{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}'.format(
-                    'Line Up',
-                    current_match[0]['home_team_lineup']['tactics'],
-                    current_match[0]['away_team_lineup']['tactics'],
-                    'Goals',
-                    current_match[0]['home_team']['goals'],
-                    current_match[0]['away_team']['goals']                
-                   ))
-    '''
     except:
-        match_title = '\n{:^36}'.format('No Game')
-        match_score = ' '
-    '''
+        match_title = '{:^39}'.format('No Game')
+        match_score = ('{!s:>3} {!s:<3}'.format('-', '-'))
+        match_score = ('{:^16}'.format(match_score))
+    
     
     return(match_title, match_score)
 
@@ -269,12 +268,8 @@ def wc_current():
     
     print("{}matches/current\n".format(WORLD_CUP))
     current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
-    # matches_today.close()
     
-    # current_match = current_match.json()
-    print(current_match.json)
-
-    match_title, match_score = match_now(current_match.json())
+    match_title, match_score = match_stats(current_match.json())
     
     return(match_title, match_score)
 
@@ -291,7 +286,7 @@ def wc_current_test():
     except OSError as e:
         raise Exception("Could not read text file.")
     
-    match_title, match_score = match_now(current_match)
+    match_title, match_score = match_stats(current_match)
 
     return(match_title, match_score)
 
@@ -442,7 +437,6 @@ if not game_on:
     print(page_title)
     print(the_schedule)
 if game_on:
-    print('\n-- Match Now --\n')
     print(match_title)
     print(match_score)
 print(page_footer)
@@ -478,7 +472,9 @@ main_group = displayio.Group()
 display.show(main_group)
 
 # Font definition. You can choose any two fonts available in your system
-SPARTAN_BOLD = bitmap_font.load_font("fonts/LeagueSpartan-Bold-16.bdf")
+SPARTAN_BOLD_16 = bitmap_font.load_font("fonts/LeagueSpartan-Bold-16.bdf")
+HELVETICA_BOLD_16 = bitmap_font.load_font("fonts/Helvetica-Bold-16.bdf")
+JUNCTION_24 = bitmap_font.load_font("fonts/Junction-regular-24.bdf")
 TERMINAL_FONT = terminalio.FONT
 
 rect = Rect(0, 0, 296, 128, fill=0xFFFFFF, outline=0xFFFFFF)
@@ -489,7 +485,7 @@ main_group.append(rect)
 # https://github.com/adafruit/Adafruit_CircuitPython_Bitmap_Font/tree/main/examples/fonts
 if not game_on:
     page_title = label.Label(
-        SPARTAN_BOLD,
+        SPARTAN_BOLD_16,
         text=page_title,
         bg_color=0xFFFFFF,
         color=0x000000,
@@ -511,23 +507,23 @@ if not game_on:
 
 if game_on:
     page_title = label.Label(
-        SPARTAN_BOLD,
+        SPARTAN_BOLD_16,
         text=match_title,
         bg_color=0xFFFFFF,
         color=0x000000,
-        x=22,
+        x=2,
         y=23,
         base_alignment=True,
     )
 
     page_body = label.Label(
-        TERMINAL_FONT,
-        scale = 1,
+        JUNCTION_24,
+        scale = 2,
         text=match_score,
         bg_color=0xFFFFFF,
         color=0x000000,
-        x=60,
-        y=45,
+        x=10,
+        y=85,
         base_alignment=True,
     )
 
