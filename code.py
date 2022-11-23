@@ -42,7 +42,7 @@ TIME_ZONE_NAME = 'PST'
 TIME_ZONE_OFFSET = -8
 
 # For future, change to timezone of cup host
-QATAR_TIME = 3
+HOST_TIME = 3
 
 
 # I2C Devices
@@ -93,8 +93,8 @@ def ts():
 
 # Network Functions ------------------
 # See sample secrets.py file for details.
-ssid = [secrets["ssid_1"], secrets["ssid_2"], secrets["ssid_3"]]
-password = [secrets["password_1"], secrets["password_2"], secrets["password_3"]]
+ssid = [secrets["ssid"], secrets["ssid_2"], secrets["ssid_3"]]
+password = [secrets["password"], secrets["password_2"], secrets["password_3"]]
 
 def wifi_connect(choice=0):
     # Connect to local network
@@ -112,10 +112,10 @@ def wifi_connect(choice=0):
         except ConnectionError as e:
             print("Connection Error: {}".format(e))
             print("Retrying in 10 seconds")
-        np_signal(color=0x000101, flashes=7, interval=0.15, time_off=0.3)
-        atime.sleep(10)
-        gc.collect()
     print("Connected!\n")
+    np_signal(color=0x000100, flashes=3, interval=0.15, time_off=0.3)
+    atime.sleep(10)
+    gc.collect()
 
 
 # MQTT Functions -----------
@@ -179,13 +179,7 @@ def wc_schedule(matches_today):
     # JSON times are Zulu/UTC/GMT
     # Device is set to local time
     
-    # Set title to display Zulu/UTC Time (matches JSON time)
-    title_date = local_time(hours = (-1 * TIME_ZONE_OFFSET))
-    title_date = title_date['iso']
-
-    dt = (datetime.fromisoformat(title_date) +
-           timedelta(hours = 0))
-    title_date = (dt.ctime()[0:10])
+    title_date = ((local_time())['ctime'])[0:10]
     
     the_schedule = ''
     page_title = ('{}\n'.format(title_date))
@@ -223,14 +217,20 @@ def wc_test_data():
     return(the_schedule, page_title)
 
 # This function GETs today's schedule (in GMT times).
+# print('yesterday: {}'.format((local_time(hours=-24))['date']))
+# print('today: {}'.format((local_time(hours=0))['date']))
+# print('tomorrow: {}'.format((local_time(hours=24))['date']))
+# ?start_date=2022-11-22&end_date=2022-11-22
 def world_cup():
+    TODAY = ((local_time(hours=0))['date'])
     WORLD_CUP = 'https://worldcupjson.net/'
+    API_PARAMETERS = 'start_date={0}&end_date={0}'.format(TODAY)
     
     # Fetching World Cup Today
     json_header = {"Accept": "application/json"}
     
-    print("{}matches/today\n".format(WORLD_CUP))
-    matches_today = requests.get("{}matches/today".format(WORLD_CUP), headers = json_header)
+    print("{}matches?{}".format(WORLD_CUP, API_PARAMETERS))
+    matches_today = requests.get("{}matches?{}".format(WORLD_CUP, API_PARAMETERS), headers = json_header)
     # matches_today.close()
     matches_today = matches_today.json()
 
@@ -239,38 +239,37 @@ def world_cup():
 
 # This function GETs information on the current match.
 def match_now(current_match):
-    # try:
-    home_team = current_match[0]['home_team_country']
-    away_team = current_match[0]['away_team_country']
-    match_time = current_match[0]['time']
+    try:
+        home_team = current_match[0]['home_team_country']
+        away_team = current_match[0]['away_team_country']
+        match_time = current_match[0]['time']
+        
+        home_team_goals = current_match[0]['home_team']['goals']
+        away_team_goals = current_match[0]['away_team']['goals']
+        
+        match_title = ('({}){} vs. {}({}) - [{}]'.format(
+            home_team_goals, home_team, away_team, away_team_goals, match_time))
+        match_score = ('{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}'.format(
+                        'On Target',
+                        current_match[0]['home_team_statistics']['on_target'],
+                        current_match[0]['away_team_statistics']['on_target'],
+                        'Off Target',
+                        current_match[0]['home_team_statistics']['off_target'],                      
+                        current_match[0]['away_team_statistics']['off_target'],
+                        'Possession',
+                        current_match[0]['home_team_statistics']['ball_possession'],
+                        current_match[0]['away_team_statistics']['ball_possession'],
+                        'Accuracy',
+                        current_match[0]['home_team_statistics']['pass_accuracy'],
+                        current_match[0]['away_team_statistics']['pass_accuracy'],
+                        'Fouls',
+                        current_match[0]['home_team_statistics']['fouls_committed'],
+                        current_match[0]['away_team_statistics']['fouls_committed']
+                       ))
     
-    home_team_goals = current_match[0]['home_team']['goals']
-    away_team_goals = current_match[0]['away_team']['goals']
-    
-    match_title = ('({}){} vs. {}({}) - [{}]'.format(
-        home_team_goals, home_team, away_team, away_team_goals, match_time))
-    match_score = ('{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}'.format(
-                    'On Target',
-                    current_match[0]['home_team_statistics']['on_target'],
-                    current_match[0]['away_team_statistics']['on_target'],
-                    'Off Target',
-                    current_match[0]['home_team_statistics']['off_target'],                      
-                    current_match[0]['away_team_statistics']['off_target'],
-                    'Possession',
-                    current_match[0]['home_team_statistics']['ball_possession'],
-                    current_match[0]['away_team_statistics']['ball_possession'],
-                    'Accuracy',
-                    current_match[0]['home_team_statistics']['pass_accuracy'],
-                    current_match[0]['away_team_statistics']['pass_accuracy'],
-                    'Fouls',
-                    current_match[0]['home_team_statistics']['fouls_committed'],
-                    current_match[0]['away_team_statistics']['fouls_committed']
-                   ))
-    '''
     except:
-        match_title = '{:^23}'.format('No Game')
-        match_score = ' - -'
-    '''
+        match_title = '\n{:^36}'.format('No Game')
+        match_score = ' '
     return(match_title, match_score)
 
 # This function uses an API dump from a running game for test.
@@ -341,18 +340,17 @@ print("My gateway is {}".format(wifi.radio.ipv4_gateway))
 print("My IP address is {}\n".format(wifi.radio.ipv4_address))
 
 print('Battery: {}'.format(battery))
-print('x:{} y:{} z:{}'.format(x, y, z))
+print('x:{} y:{} z:{}\n'.format(x, y, z))
 
 
 # WiFi Setup ------------------
 # Use test data 
-if wifi.radio.ipv4_gateway is None:  
-
-    now_time = local_time()
-    now_time = now_time['iso']
+if wifi.radio.ipv4_gateway is None:
+    
+    now_time = (local_time())['iso']
     next_update_ts = ts() + refresh_time
-    next_update = (datetime.fromtimestamp(next_update_ts)).isoformat()
-    print('\nThe current datetime is: {}, ({})'.format(now_time, ts()))
+    next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
+    print('The current datetime is: {}, ({})'.format(now_time, ts()))
     print('The next update will be: {}, ({})\n'.format(next_update, next_update_ts))
            
     import os
@@ -419,17 +417,15 @@ else:  # use live data
     io = IO_HTTP(secrets["aio_username"], secrets["aio_key"], requests)
     # io = IO_HTTP(aio_username, aio_key, requests)
     
-    print("Fetching time from Adafruit IO...")
+    print("Fetching time from Adafruit IO...\n")
     
     rtc.RTC().datetime = io.receive_time()
-    r = rtc.RTC()
-    now_time = local_time()
-    now_time = now_time['iso']
+    now_time = (local_time())['iso']
     next_update_ts = ts() + refresh_time
-    next_update = (datetime.fromtimestamp(next_update_ts)).isoformat()
-    print('\nThe current datetime is: {}, ({})'.format(now_time, ts()))
+    next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
+    print('The current datetime is: {}, ({})'.format(now_time, ts()))
     print('The next update will be: {}, ({})\n'.format(next_update, next_update_ts))
-    
+
     if not game_on:    
         the_schedule, page_title = world_cup()
     if game_on:    
@@ -536,7 +532,7 @@ page_footer = label.Label(
     text=page_footer,
     bg_color=0xFFFFFF,
     color=0x000000,
-    x=40,
+    x=80,
     y=126,
     base_alignment=True,
 )
