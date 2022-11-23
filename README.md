@@ -28,7 +28,7 @@ Make sure these libraries are installed in the `/lib` folder of the MagTag. The 
 
 - adafruit_bitmap_font 
 - adafruit_display_text 
-- adafruit_display_shapes.rect 
+- adafruit_display_shapes
 - adafruit_datetime 
 - adafruit_requests
 - adafruit_io
