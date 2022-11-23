@@ -2,10 +2,15 @@
 
 Switch between Today's Schedule and Live Match score by rotating the MagTag.
 
-![upsideup](upsideup.jpeg)
-![upsidedown](upsidedown.jpeg)
-
 This script uses the amazing [World Cup JSON](https://github.com/estiens/world_cup_json) to get its information. For now, the Live Match page only shows the current scores. In-game stats will be added when they become available on the JSON. Looks like it'll be [happening soon](https://github.com/estiens/world_cup_json/issues/210#issuecomment-1325489429).
+
+Game Schedule View - Upside Up:
+
+<img src="upsideup.jpeg" alt="Game Schedule View" width="400"/>
+
+Live Game View - Upside Down:
+
+<img src="upsidedown.jpeg" alt="Live Game View" width="400"/>
 
 ## Installation
 
