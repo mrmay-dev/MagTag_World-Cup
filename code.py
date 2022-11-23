@@ -37,6 +37,11 @@ from secrets import secrets
 import adafruit_lis3dh
 import neopixel
 
+
+# Refresh times
+GAME_ON = 60  # in seconds
+GAME_OFF = (10 * 60)  # in seconds
+
 # Change these to meet your location
 TIME_ZONE_NAME = 'PST'
 TIME_ZONE_OFFSET = -8
@@ -199,22 +204,34 @@ def wc_schedule(matches_today):
     
     return(the_schedule, page_title)
 
-def wc_test_data():
-    # This is simply the output from the API for testing.
-    # https://worldcupjson.net/matches/today
+# This function parses information on the current match.
+def match_now(current_match):
+    #try:
+    home_team = current_match[0]['home_team_country']
+    away_team = current_match[0]['away_team_country']
+    match_time = current_match[0]['time']
     
-    try:
-        with open("wc_test_data.json", "r") as fp:
-            x = fp.read()
-            # parse x:
-            matches_today = json.loads(x)
-            
-    except OSError as e:
-        raise Exception("Could not read text file.")
+    home_team_goals = current_match[0]['home_team']['goals']
+    away_team_goals = current_match[0]['away_team']['goals']
     
-    the_schedule, page_title = wc_schedule(matches_today)
+    match_title = ('({}){} vs. {}({}) - [{}]'.format(
+        home_team_goals, home_team, away_team, away_team_goals, match_time))
+    match_score = ('{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}'.format(
+                    'Line Up',
+                    current_match[0]['home_team_lineup']['tactics'],
+                    current_match[0]['away_team_lineup']['tactics'],
+                    'Goals',
+                    current_match[0]['home_team']['goals'],
+                    current_match[0]['away_team']['goals']                
+                   ))
+    '''
+    except:
+        match_title = '\n{:^36}'.format('No Game')
+        match_score = ' '
+    '''
+    
+    return(match_title, match_score)
 
-    return(the_schedule, page_title)
 
 # This function GETs today's schedule (in GMT times).
 # print('yesterday: {}'.format((local_time(hours=-24))['date']))
@@ -237,43 +254,34 @@ def world_cup():
     the_schedule = wc_schedule(matches_today)
     return(the_schedule)
 
-# This function GETs information on the current match.
-def match_now(current_match):
-    try:
-        home_team = current_match[0]['home_team_country']
-        away_team = current_match[0]['away_team_country']
-        match_time = current_match[0]['time']
-        
-        home_team_goals = current_match[0]['home_team']['goals']
-        away_team_goals = current_match[0]['away_team']['goals']
-        
-        match_title = ('({}){} vs. {}({}) - [{}]'.format(
-            home_team_goals, home_team, away_team, away_team_goals, match_time))
-        match_score = ('{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}\n{:>11}:   {!s:^6} {!s:^6}'.format(
-                        'On Target',
-                        current_match[0]['home_team_statistics']['on_target'],
-                        current_match[0]['away_team_statistics']['on_target'],
-                        'Off Target',
-                        current_match[0]['home_team_statistics']['off_target'],                      
-                        current_match[0]['away_team_statistics']['off_target'],
-                        'Possession',
-                        current_match[0]['home_team_statistics']['ball_possession'],
-                        current_match[0]['away_team_statistics']['ball_possession'],
-                        'Accuracy',
-                        current_match[0]['home_team_statistics']['pass_accuracy'],
-                        current_match[0]['away_team_statistics']['pass_accuracy'],
-                        'Fouls',
-                        current_match[0]['home_team_statistics']['fouls_committed'],
-                        current_match[0]['away_team_statistics']['fouls_committed']
-                       ))
+
+
+
+# Function GETs current game stats.
+def wc_current():    
+    # pool = socketpool.SocketPool(wifi.radio)
+    # requests = aio_requests.Session(pool, ssl.create_default_context())
     
-    except:
-        match_title = '\n{:^36}'.format('No Game')
-        match_score = ' '
+    WORLD_CUP = 'https://worldcupjson.net/'
+    
+    # Fetching World Cup Today
+    json_header = {"Accept": "application/json"}
+    
+    print("{}matches/current\n".format(WORLD_CUP))
+    current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
+    # matches_today.close()
+    
+    # current_match = current_match.json()
+    print(current_match.json)
+
+    match_title, match_score = match_now(current_match.json())
+    
     return(match_title, match_score)
 
+# Test Functions ------
+
 # This function uses an API dump from a running game for test.
-def wc_now_test():
+def wc_current_test():
     try:
         with open("wc_current_match.json", "r") as fp:
             x = fp.read()
@@ -287,26 +295,22 @@ def wc_now_test():
 
     return(match_title, match_score)
 
-# Function GETs current game stats.
-def wc_now():    
-    # pool = socketpool.SocketPool(wifi.radio)
-    # requests = aio_requests.Session(pool, ssl.create_default_context())
+def wc_test_data():
+    # This is simply the output from the API for testing.
+    # https://worldcupjson.net/matches/today
     
-    WORLD_CUP = 'https://worldcupjson.net/'
+    try:
+        with open("wc_test_data.json", "r") as fp:
+            x = fp.read()
+            # parse x:
+            matches_today = json.loads(x)
+            
+    except OSError as e:
+        raise Exception("Could not read text file.")
     
-    # Fetching World Cup Today
-    json_header = {"Accept": "application/json"}
-    
-    print("{}matches/current\n".format(WORLD_CUP))
-    current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
-    # matches_today.close()
-    
-    current_match = current_match.json()
+    the_schedule, page_title = wc_schedule(matches_today)
 
-    match_title, match_score = match_now(current_match)
-    
-    return(match_title, match_score)
-
+    return(the_schedule, page_title)
 
 # ------ Main Program ------
 
@@ -325,12 +329,12 @@ if y < 0:
     game_on = True  # Display live score
     DISPLAY_ROTATION = 90
     #TODO refresh every 2 minutes for current match.
-    refresh_time = 120  # seconds
+    refresh_time = GAME_ON  # seconds
 else:
     game_on = False  # Display schedule
     DISPLAY_ROTATION = 270
     #TODO refresh just before the next match
-    refresh_time = 10 * 60  # seconds
+    refresh_time = GAME_OFF  # seconds
 
 
 print('Game is on: {}'.format(game_on))
@@ -357,7 +361,7 @@ if wifi.radio.ipv4_gateway is None:
     if not game_on:
         the_schedule, page_title = wc_test_data()
     if game_on:    
-        match_title, match_score = wc_now_test() 
+        match_title, match_score = wc_current_test() 
     print('Using test data.\n')
 
 else:  # use live data
@@ -429,7 +433,7 @@ else:  # use live data
     if not game_on:    
         the_schedule, page_title = world_cup()
     if game_on:    
-        match_title, match_score = wc_now() 
+        match_title, match_score = wc_current() 
 
 page_footer = 'Bat: {:0.1f}v - Next: {}'.format(
     battery, next_update)
