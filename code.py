@@ -46,17 +46,13 @@ import neopixel
 SSID = secrets["ssid"]
 PASSWORD = secrets["password"]
 
-# adafruit.io credentials
-AIO_USERNAME = secrets["aio_username"]
-AIO_KEY = secrets["aio_key"]
+# Change these to meet your location
+TIME_ZONE_NAME = 'PST'
+TIME_ZONE_OFFSET = -8
 
 # Refresh times
 GAME_ON = 60  # in seconds
 GAME_OFF = (10 * 60)  # in seconds
-
-# Change these to meet your location
-TIME_ZONE_NAME = 'PST'
-TIME_ZONE_OFFSET = -8
 
 # For future, change to timezone of cup host
 HOST_TIME = 3
@@ -124,7 +120,7 @@ def wifi_connect(choice=0):
 
     while not wifi.radio.ipv4_address:
         try:
-            print("\nConnecting to {}".format(ssid[choice]))
+            print("\nConnecting to {}".format(SSID))
             wifi.radio.connect(SSID, PASSWORD)
         except ConnectionError as e:
             print("Connection Error: {}".format(e))
@@ -254,7 +250,6 @@ def world_cup():
     
     # Fetching World Cup Today
     json_header = {"Accept": "application/json"}
-    
     print("{}matches?{}".format(WORLD_CUP, API_PARAMETERS))
     matches_today = requests.get("{}matches?{}".format(WORLD_CUP, API_PARAMETERS), headers = json_header)
     # matches_today.close()
@@ -423,18 +418,34 @@ else:  # use live data
     
     # AIO Time
     # Initialize an Adafruit IO HTTP API object
-    io = IO_HTTP(AIO_USERNAME, AIO_KEY, requests)
+    # io = IO_HTTP(AIO_USERNAME, AIO_KEY, requests)
     # io = IO_HTTP(aio_username, aio_key, requests)
     
-    print("Fetching time from Adafruit IO...\n")
+    # rtc.RTC().datetime = str(datetime.fromtimestamp(next_update_ts))
     
-    rtc.RTC().datetime = io.receive_time()
-    now_time = (local_time())['iso']
+    
+    AIO_TIME = 'https://io.adafruit.com/api/v2/time/seconds'
+    text_header = {"Accept": "application/text"}
+    
+    print("Fetching time from Adafruit IO...\n")
+    # Get time from io.adafruit.com
+    time_from_aio = requests.get('{}'.format(AIO_TIME), headers = text_header)
+    # Convert timestamp to datetime object
+    time_from_aio = (datetime.fromtimestamp(int(time_from_aio.text)))
+    # Convert to local time
+    time_from_aio = time_from_aio + timedelta(hours = TIME_ZONE_OFFSET)
+    # Set device clock
+    rtc.RTC().datetime = time_from_aio.timetuple()
+    
+    # Get current time
+    now_time = (local_time())['time']
+    # Get time of next update as timestamp
     next_update_ts = ts() + refresh_time
+    
     next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
-    print('The current datetime is: {}, ({})'.format(now_time, ts()))
+    print('The current time is: {}, ({})'.format(now_time, ts()))
     print('The next update will be: {}, ({})\n'.format(next_update, next_update_ts))
-
+    
     if not game_on:    
         the_schedule, page_title = world_cup()
     if game_on:    
