@@ -360,7 +360,7 @@ def main_program():
 
 # Comment out for test mode and use cached JSON files.
 # choice= option to choose what SSID to connect with.
-# wifi_connect(choice=0)
+wifi_connect(choice=0)
 
 x, y, z, battery = update_data()
 
