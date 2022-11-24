@@ -1,5 +1,6 @@
 
-#
+#TODO use the 'id' url to grab live stats.
+# https://worldcupjson.net/matches/11
 
 # built-in modules
 import gc
@@ -38,6 +39,17 @@ import adafruit_lis3dh
 import neopixel
 
 
+# User Settings -----------
+
+# See sample secrets.py file for details.
+# WiFi Credentials
+SSID = secrets["ssid"]
+PASSWORD = secrets["password"]
+
+# adafruit.io credentials
+AIO_USERNAME = secrets["aio_username"]
+AIO_KEY = secrets["aio_key"]
+
 # Refresh times
 GAME_ON = 60  # in seconds
 GAME_OFF = (10 * 60)  # in seconds
@@ -49,6 +61,8 @@ TIME_ZONE_OFFSET = -8
 # For future, change to timezone of cup host
 HOST_TIME = 3
 
+
+# Configurations ------
 
 # I2C Devices
 i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
@@ -63,7 +77,8 @@ voltage_pin = AnalogIn(board.VOLTAGE_MONITOR)
 pixels = neopixel.NeoPixel(board.NEOPIXEL, 4, brightness=1, auto_write=True)
 
 
-# Useful functions
+# Useful functions ---------
+
 def np_signal(color=0x220000, flashes=3, interval=.15, time_off=1):
     NP_POWER.switch_to_output(False)
     for i in range(flashes):
@@ -97,9 +112,6 @@ def ts():
 
 
 # Network Functions ------------------
-# See sample secrets.py file for details.
-ssid = [secrets["ssid"], secrets["ssid_2"], secrets["ssid_3"]]
-password = [secrets["password"], secrets["password_2"], secrets["password_3"]]
 
 def wifi_connect(choice=0):
     # Connect to local network
@@ -113,7 +125,7 @@ def wifi_connect(choice=0):
     while not wifi.radio.ipv4_address:
         try:
             print("\nConnecting to {}".format(ssid[choice]))
-            wifi.radio.connect(secrets["ssid"], secrets["password"])
+            wifi.radio.connect(SSID, PASSWORD)
         except ConnectionError as e:
             print("Connection Error: {}".format(e))
             print("Retrying in 10 seconds")
@@ -159,7 +171,9 @@ def message(client, feed_id, payload):
     print("Feed {0} received new value: {1}".format(feed_id, payload))
     return(ts)
 
-# ------------------------
+
+# Data Update -------------------
+
 def update_data():
     # Turn things off
     NP_POWER.switch_to_output(False)
@@ -204,6 +218,7 @@ def wc_schedule(matches_today):
     
     return(the_schedule, page_title)
 
+
 # This function parses information on the current match.
 def match_stats(current_match):
     try:
@@ -227,16 +242,11 @@ def match_stats(current_match):
         match_title = '{:^39}'.format('No Game')
         match_score = ('{!s:>3} {!s:<3}'.format('-', '-'))
         match_score = ('{:^16}'.format(match_score))
-    
-    
+      
     return(match_title, match_score)
 
 
 # This function GETs today's schedule (in GMT times).
-# print('yesterday: {}'.format((local_time(hours=-24))['date']))
-# print('today: {}'.format((local_time(hours=0))['date']))
-# print('tomorrow: {}'.format((local_time(hours=24))['date']))
-# ?start_date=2022-11-22&end_date=2022-11-22
 def world_cup():
     TODAY = ((local_time(hours=0))['date'])
     WORLD_CUP = 'https://worldcupjson.net/'
@@ -252,8 +262,6 @@ def world_cup():
 
     the_schedule = wc_schedule(matches_today)
     return(the_schedule)
-
-
 
 
 # Function GETs current game stats.
@@ -273,7 +281,8 @@ def wc_current():
     
     return(match_title, match_score)
 
-# Test Functions ------
+
+# Test Data Functions ------
 
 # This function uses an API dump from a running game for test.
 def wc_current_test():
@@ -306,6 +315,7 @@ def wc_test_data():
     the_schedule, page_title = wc_schedule(matches_today)
 
     return(the_schedule, page_title)
+
 
 # ------ Main Program ------
 
@@ -364,7 +374,7 @@ else:  # use live data
     pool = socketpool.SocketPool(wifi.radio)
     requests = aio_requests.Session(pool, ssl.create_default_context())
     
-    #For using NTP instead of AdafruitIO
+    # For using NTP instead of AdafruitIO
     '''
     # set RTC clock
     ntp = adafruit_ntp.NTP(pool, tz_offset=TIME_ZONE_OFFSET)
@@ -374,7 +384,7 @@ else:  # use live data
     print('The current datetime is: {}, ({})'.format(now_time['iso'], ts()))
     '''
     
-    # For storing data on AdafruitIO
+    # For storing data on AdafruitIO via MQTT
     '''
     # Initialize a new MQTT Client object
     mqtt_client = MQTT.MQTT(
@@ -413,7 +423,7 @@ else:  # use live data
     
     # AIO Time
     # Initialize an Adafruit IO HTTP API object
-    io = IO_HTTP(secrets["aio_username"], secrets["aio_key"], requests)
+    io = IO_HTTP(AIO_USERNAME, AIO_KEY, requests)
     # io = IO_HTTP(aio_username, aio_key, requests)
     
     print("Fetching time from Adafruit IO...\n")
@@ -442,19 +452,12 @@ if game_on:
 print(page_footer)
 
 
+# Display Setup
+
 def disiplay_setup():
     return
 
-# Display Setup
-# Creating Text Boxes
-# Each terminalio letter is 6px wide on the MagTag
-# 2px margin allows 49 characters per line.
-# Arial-Bold-12.pcf fits 33 "x" characters across.
-
 def try_refresh():
-    """Attempt to refresh the display. Catch 'refresh too soon' error
-       and retry after waiting 10 seconds.
-    """
     try:
         board.DISPLAY.refresh()
     except RuntimeError as too_soon_error:
@@ -465,20 +468,23 @@ def try_refresh():
         board.DISPLAY.refresh()
 
 
-# Get the display object
+# Display object
 display = board.DISPLAY
 display.rotation = DISPLAY_ROTATION
 main_group = displayio.Group()
 display.show(main_group)
 
-# Font definition. You can choose any two fonts available in your system
+
+# Font definitions
 SPARTAN_BOLD_16 = bitmap_font.load_font("fonts/LeagueSpartan-Bold-16.bdf")
 HELVETICA_BOLD_16 = bitmap_font.load_font("fonts/Helvetica-Bold-16.bdf")
 JUNCTION_24 = bitmap_font.load_font("fonts/Junction-regular-24.bdf")
 TERMINAL_FONT = terminalio.FONT
 
+# Make the background white
 rect = Rect(0, 0, 296, 128, fill=0xFFFFFF, outline=0xFFFFFF)
 main_group.append(rect)
+
 
 # Create labels
 # https://docs.circuitpython.org/projects/display_text/en/latest/api.html#adafruit-display-text
@@ -548,7 +554,7 @@ display.show(main_group)
 try_refresh()
 
 
-# Signal that screen has been updated
+# Blink LEDs to signal that screen has been updated
 colors = [0x110900, 0x001111, 0x110011]
 flashes = 1
 interval = 0.5
@@ -559,12 +565,10 @@ for i in range(len(colors)):
 
 print('\nscreen refreshed\ngoing to sleep for {:0.0f} minutes.'.format(refresh_time/60))
 
-# Create a an alarm that will trigger 20 seconds from now.
+
+# Create a an alarm 
 time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_time)
 # Exit the program, and then deep sleep until the alarm wakes us.
 alarm.exit_and_deep_sleep_until_alarms(time_alarm)
 # Does not return, so we never get here.
-
-
-
 
