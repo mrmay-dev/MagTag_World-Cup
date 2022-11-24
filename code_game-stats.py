@@ -1,11 +1,21 @@
 
+# about this version
+'''
+    Live game stats are not available, yet.
+    When they are, this version of the script **should** display:
+
+        - Shots ON and OFF target.
+        - Passess and Passess Completed.
+        - Fouls Committed.
+        - Yellow and Red cards.
+'''
 #TODO
 '''
-- In-game stats when available.
-- Display next game info on Live Match page when no game is being played.
-- Favorite team details when turned vertically.
-- Fine-tune refresh times so MagTag only updates at midnight, just before a match, and then at regular intervals during a match.
-- DONE remove need for Adafruit credentials
+    - Display next game info on Live Match page when no game is being played.
+    - Favorite team details when turned vertically.
+    - Fine-tune refresh times so MagTag only updates at midnight, just before a match, and then at regular intervals during a match.
+    - DONE remove need for Adafruit credentials
+    - DONE(ish) In-game stats when available.
 '''
 
 # built-in modules
@@ -62,6 +72,7 @@ GAME_OFF_REFRESH = (10 * 60)  # in seconds
 
 # For future, change to timezone of cup host
 HOST_TIME = 3
+
 
 # Configurations ------
 
@@ -223,51 +234,65 @@ def wc_schedule(matches_today):
 
 # This function parses information on the current match.
 def match_stats(current_match):
-    # try:
-    # Match Title
-    home_team = current_match[0]['home_team']['name']
-    away_team = current_match[0]['away_team']['name']      
-    home_team_goals = current_match[0]['home_team']['goals']
-    away_team_goals = current_match[0]['away_team']['goals']
-    # General Info
-    match_time = current_match[0]['time']
-    location = current_match[0]['location']
-    stage_name = current_match[0]['stage_name']
-    
-    local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
-    host_hours = (local_time(hours = local_time_offset))
-    
-    host_hours = str(host_hours['time'])[0:5]
-    
-    location = ('{}'.format(location, host_hours))
-    # Team Info
-    home_tactics = current_match[0]['home_team_lineup']['tactics']
-    home_penalties = current_match[0]['home_team']['penalties']
-    away_tactics = current_match[0]['away_team_lineup']['tactics']
-    away_penalties = current_match[0]['away_team']['penalties']
-    
-    
-    game_info = ('{:<14}{}{:>14}'.format(match_time, stage_name, location))
-    
-    match_title = ('{1:>12}{0:^6}{2:<12}'.format(
-        '', home_team, away_team))
-    
-    game_score = ('{1:^7d}{0:^13}{2:^7d}'.format('Gol', home_team_goals, away_team_goals))
+    try:
+        # Match Title
+        match_time = current_match[0]['time']
+        home_team = current_match[0]['home_team_country']
+        away_team = current_match[0]['away_team_country']      
+        home_team_goals = current_match[0]['home_team']['goals']
+        away_team_goals = current_match[0]['away_team']['goals']
+        # Shots On and Off Target
+        home_team_on_target = current_match[0]['home_team_statistics']['on_target']
+        home_team_off_target = current_match[0]['home_team_statistics']['off_target']
+        away_team_on_target = current_match[0]['away_team_statistics']['on_target']
+        away_team_off_target = current_match[0]['away_team_statistics']['off_target']
+        # Pasess and Passess Completed
+        home_team_num_passes = current_match[0]['home_team_statistics']['num_passes']
+        home_team_passess_completed = current_match[0]['home_team_statistics']['passes_completed']
+        away_team_num_passes = current_match[0]['away_team_statistics']['num_passes']
+        away_team_passess_completed = current_match[0]['away_team_statistics']['passes_completed']
+        # Fouls Committed
+        home_team_fouls_committed = current_match[0]['home_team_statistics']['fouls_committed']
+        away_team_fouls_committed = current_match[0]['away_team_statistics']['fouls_committed']
+        # Yellow and Red Cards
+        home_team_yellow_cards = current_match[0]['home_team_statistics']['yellow_cards']
+        home_team_red_cards = current_match[0]['home_team_statistics']['red_cards']        
+        away_team_yellow_cards = current_match[0]['away_team_statistics']['yellow_cards']
+        away_team_red_cards = current_match[0]['away_team_statistics']['red_cards']
+
         
-    game_tactics = ('{:>2}{:^13}{:<2}'.format(
-        home_tactics, 'Tac', away_tactics))
+        match_title = ('{}  {} vs. {}  {} - [{}]'.format(
+            home_team, home_team_goals, away_team_goals, away_team, match_time))
+        match_title = ('{:^37}'.format(match_title))
+        match_score = ('{:>19}   {!s:>5}/{!s:<5} {!s:>5}/{!s:<5}\n{:>19}   {!s:>5}/{!s:<5} {!s:>5}/{!s:<5}\n{:>19}   {!s:^11} {!s:^11}\n{:>19}   {!s:>5}/{!s:<5} {!s:>5}/{!s:<5}' 
+                       .format(
+                            'On/Off Target:',
+                            home_team_on_target,
+                            home_team_off_target,
+                            away_team_on_target,
+                            away_team_off_target,
+                            'Passess/Completed:',
+                            home_team_num_passes,
+                            home_team_passess_completed,
+                            away_team_num_passes,
+                            away_team_passess_completed,
+                            'Fouls:',
+                            home_team_fouls_committed,
+                            away_team_fouls_committed,
+                            'Yellow/Red:',
+                            home_team_yellow_cards,
+                            home_team_red_cards,
+                            away_team_yellow_cards,
+                            away_team_red_cards
+                            ))
+        '''            
+        'Passess/Completed:',
+        'Fouls:',  
+        'Yellow/Red Cards:',
+        '''            
+                       
+        # match_score = ('{:^14}'.format(match_score))
     
-    game_penalties = ('{:^7d}{:^13}{:^7d}'.format(
-        home_penalties, 'Pen', away_penalties))
-    
-    '''            
-    'Passess/Completed:',
-    'Fouls:',  
-    'Yellow/Red Cards:',
-    '''            
-                   
-    # match_score = ('{:^14}'.format(match_score))
-    '''
     except:
         #TODO Determine next match and display basic stats.
         # - GET list of upcoming matches
@@ -279,8 +304,8 @@ def match_stats(current_match):
         match_title = '{:^39}'.format('No Game')
         match_score = ('{!s:>3} {!s:<3}'.format('-', '-'))
         match_score = ('{:^16}'.format(match_score))
-    '''
-    return(game_info, match_title, game_score, game_tactics, game_penalties)
+    
+    return(match_title, match_score)
 
 
 # This function GETs today's schedule (in GMT times).
@@ -313,9 +338,9 @@ def wc_current():
     print("{}matches/current\n".format(WORLD_CUP))
     current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
     
-    game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match.json())
+    match_title, match_score = match_stats(current_match.json())
     
-    return(game_info, match_title, game_score, game_tactics, game_penalties)
+    return(match_title, match_score)
 
 
 # Test Data Functions ------
@@ -331,9 +356,9 @@ def wc_current_test():
     except OSError as e:
         raise Exception("Could not read text file.")
     
-    game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match)
+    match_title, match_score = match_stats(current_match)
 
-    return(game_info, match_title, game_score, game_tactics, game_penalties)
+    return(match_title, match_score)
 
 def wc_test_data():
     # This is simply the output from the API for testing.
@@ -360,7 +385,7 @@ def main_program():
 
 # Comment out for test mode and use cached JSON files.
 # choice= option to choose what SSID to connect with.
-# wifi_connect(choice=0)
+wifi_connect(choice=0)
 
 x, y, z, battery = update_data()
 
@@ -402,7 +427,7 @@ if wifi.radio.ipv4_gateway is None:
     if not game_on:
         the_schedule, page_title = wc_test_data()
     if game_on:    
-        game_info, match_title, game_score, game_tactics, game_penalties = wc_current_test() 
+        match_title, match_score = wc_current_test() 
     print('Using test data.\n')
 
 else:  # use live data
@@ -485,7 +510,7 @@ else:  # use live data
     if not game_on:    
         the_schedule, page_title = world_cup()
     if game_on:    
-        game_info, match_title, game_score, game_tactics, game_penalties = wc_current() 
+        match_title, match_score = wc_current() 
 
 page_footer = 'Bat: {:0.1f}v - Next: {}'.format(
     battery, next_update)
@@ -494,11 +519,8 @@ if not game_on:
     print(page_title)
     print(the_schedule)
 if game_on:
-    print(game_info)
     print(match_title)
-    print(game_score)
-    print(game_tactics)
-    print(game_penalties)
+    print(match_score)
 print(page_footer)
 
 
@@ -519,8 +541,6 @@ def try_refresh():
 
 
 # Display object
-WIDTH = 296
-HEIGHT = 128
 display = board.DISPLAY
 display.rotation = DISPLAY_ROTATION
 main_group = displayio.Group()
@@ -534,7 +554,7 @@ JUNCTION_24 = bitmap_font.load_font("fonts/Junction-regular-24.bdf")
 TERMINAL_FONT = terminalio.FONT
 
 # Make the background white
-rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
+rect = Rect(0, 0, 296, 128, fill=0xFFFFFF, outline=0xFFFFFF)
 main_group.append(rect)
 
 
@@ -549,7 +569,6 @@ if not game_on:
         color=0x000000,
         x=10,
         y=23,
-        anchor_point = (0.5, 0.5),
         base_alignment=True,
     )
 
@@ -564,55 +583,25 @@ if not game_on:
         base_alignment=True,
     )
 
-# game_info, match_title, game_score, game_tactics, game_penalties
 if game_on:
-
-    page_body0 = label.Label(
-        HELVETICA_BOLD_16,
-        scale = 1,
-        text=game_info,
-        color=0x444444,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 52),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-    
     page_title = label.Label(
         SPARTAN_BOLD_16,
         text=match_title,
+        bg_color=0xFFFFFF,
         color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 24),
-        anchor_point = (0.5, 0.5),
+        x=2,
+        y=23,
         base_alignment=True,
     )
-# game_info, match_title, game_score, game_tactics, game_penalties
-    page_body1 = label.Label(
-        HELVETICA_BOLD_16,
+
+    page_body = label.Label(
+        TERMINAL_FONT,
         scale = 1,
-        text=game_score,
+        text=match_score,
+        bg_color=0xFFFFFF,
         color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 0),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-    
-    page_body2 = label.Label(
-        HELVETICA_BOLD_16,
-        scale = 1,
-        text=game_tactics,
-        color=0x444444,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 19),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-    
-    page_body3 = label.Label(
-        HELVETICA_BOLD_16,
-        scale = 1,
-        text=game_penalties,
-        color=0x444444,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 38),
-        anchor_point = (0.5, 0.5),
+        x=15,
+        y=50,
         base_alignment=True,
     )
 
@@ -626,17 +615,9 @@ page_footer = label.Label(
     base_alignment=True,
 )
 
-if not game_on:
-    main_group.append(page_title)
-    main_group.append(page_body)
-    main_group.append(page_footer)
-if game_on:
-    main_group.append(page_body0)
-    main_group.append(page_title)
-    main_group.append(page_body1)
-    main_group.append(page_body2)
-    main_group.append(page_body3)
-    # main_group.append(page_footer)
+main_group.append(page_title)
+main_group.append(page_body)
+main_group.append(page_footer)
 
 # show the group
 display.show(main_group)
@@ -662,4 +643,5 @@ time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_tim
 # Exit the program, and then deep sleep until the alarm wakes us.
 alarm.exit_and_deep_sleep_until_alarms(time_alarm)
 # Does not return, so we never get here.
+
 
