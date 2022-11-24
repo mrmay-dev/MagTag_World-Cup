@@ -225,21 +225,63 @@ def wc_schedule(matches_today):
 # This function parses information on the current match.
 def match_stats(current_match):
     try:
-        home_team = current_match[0]['home_team_country']
-        away_team = current_match[0]['away_team_country']
+        # Match Title
         match_time = current_match[0]['time']
-        
+        home_team = current_match[0]['home_team_country']
+        away_team = current_match[0]['away_team_country']      
         home_team_goals = current_match[0]['home_team']['goals']
         away_team_goals = current_match[0]['away_team']['goals']
+        # Shots On and Off Target
+        home_team_on_target = current_match[0]['home_team_statistics']['on_target']
+        home_team_off_target = current_match[0]['home_team_statistics']['off_target']
+        away_team_on_target = current_match[0]['away_team_statistics']['on_target']
+        away_team_off_target = current_match[0]['away_team_statistics']['off_target']
+        # Pasess and Passess Completed
+        home_team_num_passes = current_match[0]['home_team_statistics']['num_passes']
+        home_team_passess_completed = current_match[0]['home_team_statistics']['passes_completed']
+        away_team_num_passes = current_match[0]['away_team_statistics']['num_passes']
+        away_team_passess_completed = current_match[0]['away_team_statistics']['passes_completed']
+        # Fouls Committed
+        home_team_fouls_committed = current_match[0]['home_team_statistics']['fouls_committed']
+        away_team_fouls_committed = current_match[0]['away_team_statistics']['fouls_committed']
+        # Yellow and Red Cards
+        home_team_yellow_cards = current_match[0]['home_team_statistics']['yellow_cards']
+        home_team_red_cards = current_match[0]['home_team_statistics']['red_cards']        
+        away_team_yellow_cards = current_match[0]['away_team_statistics']['yellow_cards']
+        away_team_red_cards = current_match[0]['away_team_statistics']['red_cards']
+
         
-        match_title = ('{} vs. {} - [{}]'.format(
-            home_team, away_team, match_time))
+        match_title = ('{}  {} vs. {}  {} - [{}]'.format(
+            home_team, home_team_goals, away_team_goals, away_team, match_time))
         match_title = ('{:^37}'.format(match_title))
-        match_score = ('{!s:>3} - {!s:<3}'.format(
-                        current_match[0]['home_team']['goals'],
-                        current_match[0]['away_team']['goals']                
-                       ))
-        match_score = ('{:^14}'.format(match_score))
+        match_score = ('{:>19}   {!s:>5}/{!s:<5} {!s:>5}/{!s:<5}\n{:>19}   {!s:>5}/{!s:<5} {!s:>5}/{!s:<5}\n{:>19}   {!s:^11} {!s:^11}\n{:>19}   {!s:>5}/{!s:<5} {!s:>5}/{!s:<5}' 
+                       .format(
+                            'On/Off Target:',
+                            home_team_on_target,
+                            home_team_off_target,
+                            away_team_on_target,
+                            away_team_off_target,
+                            'Passess/Completed:',
+                            home_team_num_passes,
+                            home_team_passess_completed,
+                            away_team_num_passes,
+                            away_team_passess_completed,
+                            'Fouls:',
+                            home_team_fouls_committed,
+                            away_team_fouls_committed,
+                            'Yellow/Red:',
+                            home_team_yellow_cards,
+                            home_team_red_cards,
+                            away_team_yellow_cards,
+                            away_team_red_cards
+                            ))
+        '''            
+        'Passess/Completed:',
+        'Fouls:',  
+        'Yellow/Red Cards:',
+        '''            
+                       
+        # match_score = ('{:^14}'.format(match_score))
     
     except:
         #TODO Determine next match and display basic stats.
@@ -252,7 +294,7 @@ def match_stats(current_match):
         match_title = '{:^39}'.format('No Game')
         match_score = ('{!s:>3} {!s:<3}'.format('-', '-'))
         match_score = ('{:^16}'.format(match_score))
-      
+    
     return(match_title, match_score)
 
 
@@ -333,7 +375,7 @@ def main_program():
 
 # Comment out for test mode and use cached JSON files.
 # choice= option to choose what SSID to connect with.
-wifi_connect(choice=0)
+# wifi_connect(choice=0)
 
 x, y, z, battery = update_data()
 
@@ -543,13 +585,13 @@ if game_on:
     )
 
     page_body = label.Label(
-        JUNCTION_24,
-        scale = 2,
+        TERMINAL_FONT,
+        scale = 1,
         text=match_score,
         bg_color=0xFFFFFF,
         color=0x000000,
-        x=10,
-        y=85,
+        x=15,
+        y=50,
         base_alignment=True,
     )
 
