@@ -6,17 +6,17 @@ This script uses the amazing [World Cup JSON](https://github.com/estiens/world_c
 
 # Usage
 
-Once setup select Schedule view or Live Game view by changing the orientation of the device. At the next update, the MagTag will check the orientation and display the selected view. For an immediate update simply click the reset button.
+Once setup, select **Schedule** view or **Live Game** view by changing the orientation of the device. At the next update, the MagTag will check the orientation and display the selected view. For an immediate update simply click the reset button.
 
 ## Game Schedule View - Upside Up:
 
 <img src="upsideup.jpeg" alt="Game Schedule View" width="400"/>
 
-## Live Game View - Upside Down:
+### Live Game View - Upside Down:
 
 <img src="upsidedown.jpeg" alt="Live Game View" width="400"/>
 
-## Installation
+### Installation
 
 1. Update board to use [CircuitPython 8.0.0-beta.4](https://circuitpython.org/board/adafruit_magtag_2.9_grayscale/) or higher.
 2. Copy [required libraries](https://circuitpython.org/libraries) into `/lib` folder.
