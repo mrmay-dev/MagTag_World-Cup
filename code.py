@@ -33,7 +33,6 @@ import adafruit_requests as aio_requests
 from adafruit_io.adafruit_io import IO_HTTP
 # import adafruit_minimqtt.adafruit_minimqtt as MQTT
 # from adafruit_io.adafruit_io import IO_MQTT
-from secrets import secrets
 # Hardware
 import adafruit_lis3dh
 import neopixel
@@ -42,6 +41,7 @@ import neopixel
 # User Settings -----------
 
 # See sample secrets.py file for details.
+from secrets import secrets
 # WiFi Credentials
 SSID = secrets["ssid"]
 PASSWORD = secrets["password"]
@@ -51,8 +51,8 @@ TIME_ZONE_NAME = 'PST'
 TIME_ZONE_OFFSET = -8
 
 # Refresh times
-GAME_ON = 60  # in seconds
-GAME_OFF = (10 * 60)  # in seconds
+GAME_ON_REFRESH = 60  # in seconds
+GAME_OFF_REFRESH = (10 * 60)  # in seconds
 
 # For future, change to timezone of cup host
 HOST_TIME = 3
@@ -74,7 +74,7 @@ pixels = neopixel.NeoPixel(board.NEOPIXEL, 4, brightness=1, auto_write=True)
 
 
 # Useful functions ---------
-
+# flashing LEDs routine
 def np_signal(color=0x220000, flashes=3, interval=.15, time_off=1):
     NP_POWER.switch_to_output(False)
     for i in range(flashes):
@@ -169,7 +169,8 @@ def message(client, feed_id, payload):
 
 
 # Data Update -------------------
-
+# These lines activate board components.
+# Be sure to load modules/drivers first.
 def update_data():
     # Turn things off
     NP_POWER.switch_to_output(False)
@@ -181,10 +182,10 @@ def update_data():
     # Battery Voltage
     # battery = voltage_pin.value
     battery = ((voltage_pin.value / 65535.0) * 3.3 * 2) * 1
-
+    
+    # On-board accelerometer
     x, y, z = lis.acceleration
     
-    # NP_POWER.switch_to_output(True)
     return(x, y, z, battery)
 
 
@@ -329,12 +330,12 @@ if y < 0:
     game_on = True  # Display live score
     DISPLAY_ROTATION = 90
     #TODO refresh every 2 minutes for current match.
-    refresh_time = GAME_ON  # seconds
+    refresh_time = GAME_ON_REFRESH  # seconds
 else:
     game_on = False  # Display schedule
     DISPLAY_ROTATION = 270
     #TODO refresh just before the next match
-    refresh_time = GAME_OFF  # seconds
+    refresh_time = GAME_OFF_REFRESH  # seconds
 
 
 print('Game is on: {}'.format(game_on))
@@ -417,14 +418,9 @@ else:  # use live data
     '''
     
     # AIO Time
-    # Initialize an Adafruit IO HTTP API object
-    # io = IO_HTTP(AIO_USERNAME, AIO_KEY, requests)
-    # io = IO_HTTP(aio_username, aio_key, requests)
-    
-    # rtc.RTC().datetime = str(datetime.fromtimestamp(next_update_ts))
-    
-    
-    AIO_TIME = 'https://io.adafruit.com/api/v2/time/seconds'
+    # Get time from Adafruit public time server. Time can fetched as a regular GET
+    # request. This eliminates need for dedicated NTP library.
+    AIO_TIME = 'https://io.adafruit.com/api/v2/time/seconds'  # POSIX/Unix timestamp
     text_header = {"Accept": "application/text"}
     
     print("Fetching time from Adafruit IO...\n")
@@ -432,7 +428,7 @@ else:  # use live data
     time_from_aio = requests.get('{}'.format(AIO_TIME), headers = text_header)
     # Convert timestamp to datetime object
     time_from_aio = (datetime.fromtimestamp(int(time_from_aio.text)))
-    # Convert to local time
+    # Adjust to local time
     time_from_aio = time_from_aio + timedelta(hours = TIME_ZONE_OFFSET)
     # Set device clock
     rtc.RTC().datetime = time_from_aio.timetuple()

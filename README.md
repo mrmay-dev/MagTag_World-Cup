@@ -4,11 +4,15 @@ Switch between Today's Schedule and Live Match score by rotating the MagTag.
 
 This script uses the amazing [World Cup JSON](https://github.com/estiens/world_cup_json) to get its information. For now, the Live Match page only shows the current scores. In-game stats will be added when they become available on the JSON. Looks like it'll be [happening soon](https://github.com/estiens/world_cup_json/issues/210#issuecomment-1325489429).
 
-Game Schedule View - Upside Up:
+# Usage
+
+Once setup select Schedule view or Live Game view by changing the orientation of the device. At the next update, the MagTag will check the orientation and display the selected view. For an immediate update simply click the reset button.
+
+## Game Schedule View - Upside Up:
 
 <img src="upsideup.jpeg" alt="Game Schedule View" width="400"/>
 
-Live Game View - Upside Down:
+## Live Game View - Upside Down:
 
 <img src="upsidedown.jpeg" alt="Live Game View" width="400"/>
 
@@ -18,6 +22,7 @@ Live Game View - Upside Down:
 2. Copy [required libraries](https://circuitpython.org/libraries) into `/lib` folder.
 3. Copy repo files onto the MagTag.
 4. Update `secrets.py` with your WiFi credentials.
+5. Update `User Settings` block in `code.py`
 
 ## Requirements
 
