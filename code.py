@@ -223,51 +223,51 @@ def wc_schedule(matches_today):
 
 # This function parses information on the current match.
 def match_stats(current_match):
-    # try:
-    # Match Title
-    home_team = current_match[0]['home_team']['name']
-    away_team = current_match[0]['away_team']['name']      
-    home_team_goals = current_match[0]['home_team']['goals']
-    away_team_goals = current_match[0]['away_team']['goals']
-    # General Info
-    match_time = current_match[0]['time']
-    location = current_match[0]['location']
-    stage_name = current_match[0]['stage_name']
-    
-    local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
-    host_hours = (local_time(hours = local_time_offset))
-    
-    host_hours = str(host_hours['time'])[0:5]
-    
-    location = ('{}'.format(location, host_hours))
-    # Team Info
-    home_tactics = current_match[0]['home_team_lineup']['tactics']
-    home_penalties = current_match[0]['home_team']['penalties']
-    away_tactics = current_match[0]['away_team_lineup']['tactics']
-    away_penalties = current_match[0]['away_team']['penalties']
-    
-    
-    game_info = ('{:<14}{}{:>14}'.format(match_time, stage_name, location))
-    
-    match_title = ('{1:>12}{0:^6}{2:<12}'.format(
-        '', home_team, away_team))
-    
-    game_score = ('{1:^7d}{0:^13}{2:^7d}'.format('Gol', home_team_goals, away_team_goals))
+    try:
+        # Match Title
+        home_team = current_match[0]['home_team']['name']
+        away_team = current_match[0]['away_team']['name']      
+        home_team_goals = current_match[0]['home_team']['goals']
+        away_team_goals = current_match[0]['away_team']['goals']
+        # General Info
+        match_time = current_match[0]['time']
+        location = current_match[0]['location']
+        stage_name = current_match[0]['stage_name']
         
-    game_tactics = ('{:>2}{:^13}{:<2}'.format(
-        home_tactics, 'Tac', away_tactics))
+        local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
+        host_hours = (local_time(hours = local_time_offset))
+        
+        host_hours = str(host_hours['time'])[0:5]
+        
+        location = ('{}'.format(location, host_hours))
+        # Team Info
+        home_tactics = current_match[0]['home_team_lineup']['tactics']
+        home_penalties = current_match[0]['home_team']['penalties']
+        away_tactics = current_match[0]['away_team_lineup']['tactics']
+        away_penalties = current_match[0]['away_team']['penalties']
+        
+        
+        game_info = ('{:<14}{}{:>14}'.format(match_time, stage_name, location))
+        
+        match_title = ('{1:>12}{0:^6}{2:<12}'.format(
+            '', home_team, away_team))
+        
+        game_score = ('{1:^7d}{0:^13}{2:^7d}'.format('Gol', home_team_goals, away_team_goals))
+            
+        game_tactics = ('{:>2}{:^13}{:<2}'.format(
+            home_tactics, 'Tac', away_tactics))
+        
+        game_penalties = ('{:^7d}{:^13}{:^7d}'.format(
+            home_penalties, 'Pen', away_penalties))
+        
+        '''            
+        'Passess/Completed:',
+        'Fouls:',  
+        'Yellow/Red Cards:',
+        '''            
+                       
+        # match_score = ('{:^14}'.format(match_score))
     
-    game_penalties = ('{:^7d}{:^13}{:^7d}'.format(
-        home_penalties, 'Pen', away_penalties))
-    
-    '''            
-    'Passess/Completed:',
-    'Fouls:',  
-    'Yellow/Red Cards:',
-    '''            
-                   
-    # match_score = ('{:^14}'.format(match_score))
-    '''
     except:
         #TODO Determine next match and display basic stats.
         # - GET list of upcoming matches
@@ -277,9 +277,11 @@ def match_stats(current_match):
         # - Select game with lowest of remaining time
         # - Parse match data to display: Home & Away teams, time of match and time till match.
         match_title = '{:^39}'.format('No Game')
-        match_score = ('{!s:>3} {!s:<3}'.format('-', '-'))
-        match_score = ('{:^16}'.format(match_score))
-    '''
+        game_score = ''
+        game_tactics = ''
+        game_info = ''
+        game_penalties = ''
+    
     return(game_info, match_title, game_score, game_tactics, game_penalties)
 
 
@@ -662,4 +664,6 @@ time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_tim
 # Exit the program, and then deep sleep until the alarm wakes us.
 alarm.exit_and_deep_sleep_until_alarms(time_alarm)
 # Does not return, so we never get here.
+
+
 
