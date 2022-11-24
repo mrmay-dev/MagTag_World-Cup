@@ -1,6 +1,12 @@
 
-#TODO use the 'id' url to grab live stats.
-# https://worldcupjson.net/matches/11
+#TODO
+'''
+- In-game stats when available.
+- Display next game info on Live Match page when no game is being played.
+- Favorite team details when turned vertically.
+- Fine-tune refresh times so MagTag only updates at midnight, just before a match, and then at regular intervals during a match.
+- DONE remove need for Adafruit credentials
+'''
 
 # built-in modules
 import gc
@@ -236,6 +242,13 @@ def match_stats(current_match):
         match_score = ('{:^14}'.format(match_score))
     
     except:
+        #TODO Determine next match and display basic stats.
+        # - GET list of upcoming matches
+        # - Convert times to timestamp for easy comparisons
+        # - Compare each game-time to local-time
+        # - Eliminate times before local-time
+        # - Select game with lowest of remaining time
+        # - Parse match data to display: Home & Away teams, time of match and time till match.
         match_title = '{:^39}'.format('No Game')
         match_score = ('{!s:>3} {!s:<3}'.format('-', '-'))
         match_score = ('{:^16}'.format(match_score))
