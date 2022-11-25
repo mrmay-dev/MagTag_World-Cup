@@ -8,7 +8,7 @@
 - DONE remove need for Adafruit credentials
 '''
 
-# built-in modules
+# built-in modules 
 import gc
 import time as atime
 import alarm
@@ -194,13 +194,45 @@ def update_data():
     return(x, y, z, battery)
 
 
-# World Cup functions
+# World Cup Schedule functions --------------------
+
+# This function GETs today's schedule (GMT times).
+def world_cup(hours = 0):
+    if wifi.radio.ipv4_gateway is None:
+        try:
+            import os
+            with open("wc_test_data.json", "r") as fp:
+                x = fp.read()
+                matches_today = json.loads(x)
+                
+        except OSError as e:
+            raise Exception("Could not read text file.")
+    
+        page_title, the_schedule = wc_schedule(matches_today)
+        
+    else:
+        GET_DATE = ((local_time(hours=hours))['date'])
+        WORLD_CUP = 'https://worldcupjson.net/'
+        API_PARAMETERS = 'start_date={0}&end_date={0}'.format(GET_DATE)
+        
+        # Fetching World Cup Today
+        json_header = {"Accept": "application/json"}
+        print("GETting schedule from:\n{}matches?{}".format(WORLD_CUP, API_PARAMETERS))
+        matches_today = requests.get("{}matches?{}".format(WORLD_CUP, API_PARAMETERS), headers = json_header)
+        # matches_today.close()
+        matches_today = matches_today.json()
+
+        page_title, the_schedule = wc_schedule(matches_today, hours)
+        
+    game_info = True
+    return(game_info, the_schedule, page_title)
+
 # Function to build schedule text for MagTag display
-def wc_schedule(matches_today):
+def wc_schedule(matches_today, adjust_hours = 0):
     # JSON times are Zulu/UTC/GMT
     # Device is set to local time
     
-    title_date = ((local_time())['ctime'])[0:10]
+    title_date = ((local_time(hours = adjust_hours))['ctime'])[0:10]
     
     the_schedule = ''
     page_title = ('{}\n'.format(title_date))
@@ -218,56 +250,85 @@ def wc_schedule(matches_today):
             i['away_team']['goals'],
             ))
     
-    return(the_schedule, page_title)
+    return(page_title, the_schedule)
 
+
+
+# Function GETs current game stats.
+def wc_current():
+    
+    if wifi.radio.ipv4_gateway is None:
+        import os
+        try:
+            with open("wc_current_match.json", "r") as fp:
+                x = fp.read()
+                # parse x:
+                current_match = json.loads(x)              
+        except OSError as e:
+            raise Exception("Could not read text file.")
+    
+        game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match)
+
+        print('Using test data.\n')
+
+    else:
+        WORLD_CUP = 'https://worldcupjson.net/'
+        
+        # Fetch World Cup Today
+        json_header = {"Accept": "application/json"}
+        print("{}matches/current\n".format(WORLD_CUP))
+        current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
+        
+        game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match.json())
+        
+    return(game_info, match_title, game_score, game_tactics, game_penalties)
 
 # This function parses information on the current match.
 def match_stats(current_match):
-    try:
+
+    # try:
+    # Parse current_match
+    match_details = {
         # Match Title
-        home_team = current_match[0]['home_team']['name']
-        away_team = current_match[0]['away_team']['name']      
-        home_team_goals = current_match[0]['home_team']['goals']
-        away_team_goals = current_match[0]['away_team']['goals']
+        "home_team" : current_match[0]['home_team']['name'], 
+        "away_team" : current_match[0]['away_team']['name'],      
+        "home_team_goals" : current_match[0]['home_team']['goals'],
+        "away_team_goals" : current_match[0]['away_team']['goals'],
         # General Info
-        match_time = current_match[0]['time']
-        location = current_match[0]['location']
-        stage_name = current_match[0]['stage_name']
-        
-        local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
-        host_hours = (local_time(hours = local_time_offset))
-        
-        host_hours = str(host_hours['time'])[0:5]
-        
-        location = ('{}'.format(location, host_hours))
+        "match_time" : current_match[0]['time'],
+        "location" : current_match[0]['location'],
+        "stage_name" : current_match[0]['stage_name'],
         # Team Info
-        home_tactics = current_match[0]['home_team_lineup']['tactics']
-        home_penalties = current_match[0]['home_team']['penalties']
-        away_tactics = current_match[0]['away_team_lineup']['tactics']
-        away_penalties = current_match[0]['away_team']['penalties']
-        
-        
-        game_info = ('{:<14}{}{:>14}'.format(match_time, stage_name, location))
-        
-        match_title = ('{1:>12}{0:^6}{2:<12}'.format(
-            '', home_team, away_team))
-        
-        game_score = ('{1:^7d}{0:^13}{2:^7d}'.format('Gol', home_team_goals, away_team_goals))
-            
-        game_tactics = ('{:>2}{:^13}{:<2}'.format(
-            home_tactics, 'Tac', away_tactics))
-        
-        game_penalties = ('{:^7d}{:^13}{:^7d}'.format(
-            home_penalties, 'Pen', away_penalties))
-        
-        '''            
-        'Passess/Completed:',
-        'Fouls:',  
-        'Yellow/Red Cards:',
-        '''            
-                       
-        # match_score = ('{:^14}'.format(match_score))
+        "home_tactics" : current_match[0]['home_team_lineup']['tactics'],
+        "home_penalties" : current_match[0]['home_team']['penalties'],
+        "away_tactics" : current_match[0]['away_team_lineup']['tactics'],
+        "away_penalties" : current_match[0]['away_team']['penalties']
+        }
+           
+    # Host Time
+    local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
+    host_hours = (local_time(hours = local_time_offset))
+    host_hours = str(host_hours['time'])[0:5]
+    location = ('{!s} {}'.format(
+        match_details['location'], host_hours))
+          
+    # Create texts
+    game_info = ('{:>7}{:^24}{:<17}'.format(
+        match_details['match_time'], match_details['stage_name'], location))
     
+    match_title = ('{1:>12}{0:^6}{2:<12}'.format(
+        '', match_details['home_team'], match_details['away_team']))
+    
+    game_score = ('{1:^7d}{0:^15}{2:^7d}'.format(
+        'Gol', match_details['home_team_goals'], match_details['away_team_goals']))
+        
+    game_tactics = ('{:>2}{:^21}{:<2}'.format(
+        match_details['home_tactics'], 'Tac', match_details['away_tactics']))
+    
+    game_penalties = ('{:^7d}{:^21}{:^7d}'.format(
+        match_details['home_penalties'], 'Pen', match_details['away_penalties']))          
+
+    '''
     except:
         #TODO Determine next match and display basic stats.
         # - GET list of upcoming matches
@@ -276,83 +337,15 @@ def match_stats(current_match):
         # - Eliminate times before local-time
         # - Select game with lowest of remaining time
         # - Parse match data to display: Home & Away teams, time of match and time till match.
-        match_title = '{:^39}'.format('No Game')
+        
+        game_info = False
+        match_title = ''
         game_score = ''
         game_tactics = ''
-        game_info = ''
         game_penalties = ''
-    
+    '''        
     return(game_info, match_title, game_score, game_tactics, game_penalties)
 
-
-# This function GETs today's schedule (in GMT times).
-def world_cup():
-    TODAY = ((local_time(hours=0))['date'])
-    WORLD_CUP = 'https://worldcupjson.net/'
-    API_PARAMETERS = 'start_date={0}&end_date={0}'.format(TODAY)
-    
-    # Fetching World Cup Today
-    json_header = {"Accept": "application/json"}
-    print("{}matches?{}".format(WORLD_CUP, API_PARAMETERS))
-    matches_today = requests.get("{}matches?{}".format(WORLD_CUP, API_PARAMETERS), headers = json_header)
-    # matches_today.close()
-    matches_today = matches_today.json()
-
-    the_schedule = wc_schedule(matches_today)
-    return(the_schedule)
-
-
-# Function GETs current game stats.
-def wc_current():    
-    # pool = socketpool.SocketPool(wifi.radio)
-    # requests = aio_requests.Session(pool, ssl.create_default_context())
-    
-    WORLD_CUP = 'https://worldcupjson.net/'
-    
-    # Fetching World Cup Today
-    json_header = {"Accept": "application/json"}
-    
-    print("{}matches/current\n".format(WORLD_CUP))
-    current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
-    
-    game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match.json())
-    
-    return(game_info, match_title, game_score, game_tactics, game_penalties)
-
-
-# Test Data Functions ------
-
-# This function uses an API dump from a running game for test.
-def wc_current_test():
-    try:
-        with open("wc_current_match.json", "r") as fp:
-            x = fp.read()
-            # parse x:
-            current_match = json.loads(x)
-            
-    except OSError as e:
-        raise Exception("Could not read text file.")
-    
-    game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match)
-
-    return(game_info, match_title, game_score, game_tactics, game_penalties)
-
-def wc_test_data():
-    # This is simply the output from the API for testing.
-    # https://worldcupjson.net/matches/today
-    
-    try:
-        with open("wc_test_data.json", "r") as fp:
-            x = fp.read()
-            # parse x:
-            matches_today = json.loads(x)
-            
-    except OSError as e:
-        raise Exception("Could not read text file.")
-    
-    the_schedule, page_title = wc_schedule(matches_today)
-
-    return(the_schedule, page_title)
 
 
 # ------ Main Program ------
@@ -365,24 +358,6 @@ def main_program():
 wifi_connect(choice=0)
 
 x, y, z, battery = update_data()
-
-# Rotation determines what screen to display and refresh_time
-#TODO a vertical orientation to display favorite team details.
-if y < 0:
-    game_on = True  # Display live score
-    DISPLAY_ROTATION = 90
-    #TODO refresh every 2 minutes for current match.
-    refresh_time = GAME_ON_REFRESH  # seconds
-else:
-    game_on = False  # Display schedule
-    DISPLAY_ROTATION = 270
-    #TODO refresh just before the next match
-    refresh_time = GAME_OFF_REFRESH  # seconds
-
-
-print('Game is on: {}'.format(game_on))
-print('Refresh: {}s\n'.format(refresh_time))
-
 print("My gateway is {}".format(wifi.radio.ipv4_gateway))
 print("My IP address is {}\n".format(wifi.radio.ipv4_address))
 
@@ -394,18 +369,8 @@ print('x:{} y:{} z:{}\n'.format(x, y, z))
 # Use test data 
 if wifi.radio.ipv4_gateway is None:
     
-    now_time = (local_time())['iso']
-    next_update_ts = ts() + refresh_time
-    next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
-    print('The current datetime is: {}, ({})'.format(now_time, ts()))
-    print('The next update will be: {}, ({})\n'.format(next_update, next_update_ts))
-           
-    import os
-    if not game_on:
-        the_schedule, page_title = wc_test_data()
-    if game_on:    
-        game_info, match_title, game_score, game_tactics, game_penalties = wc_current_test() 
-    print('Using test data.\n')
+    now_time = str((local_time())['time'])[0:5]
+    print('The current time is: {}, ({})'.format(now_time, ts()))
 
 else:  # use live data
     
@@ -464,43 +429,76 @@ else:  # use live data
     # request. This eliminates need for dedicated NTP library.
     AIO_TIME = 'https://io.adafruit.com/api/v2/time/seconds'  # POSIX/Unix timestamp
     text_header = {"Accept": "application/text"}
-    
     print("Fetching time from Adafruit IO...\n")
-    # Get time from io.adafruit.com
+    
+    # Set time using io.adafruit.com time feed
     time_from_aio = requests.get('{}'.format(AIO_TIME), headers = text_header)
-    # Convert timestamp to datetime object
     time_from_aio = (datetime.fromtimestamp(int(time_from_aio.text)))
-    # Adjust to local time
     time_from_aio = time_from_aio + timedelta(hours = TIME_ZONE_OFFSET)
-    # Set device clock
     rtc.RTC().datetime = time_from_aio.timetuple()
     
-    # Get current time
+    # Get local time
     now_time = (local_time())['time']
-    # Get time of next update as timestamp
-    next_update_ts = ts() + refresh_time
-    
-    next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
     print('The current time is: {}, ({})'.format(now_time, ts()))
-    print('The next update will be: {}, ({})\n'.format(next_update, next_update_ts))
     
-    if not game_on:    
-        the_schedule, page_title = world_cup()
-    if game_on:    
-        game_info, match_title, game_score, game_tactics, game_penalties = wc_current() 
 
-page_footer = 'Bat: {:0.1f}v - Next: {}'.format(
-    battery, next_update)
+def detect_mode():
+    return
+# Screen Decision Routine
+# Rotation determines what screen to display and refresh_time.
+
+#TODO a vertical orientation to display favorite team details.
+if y < 0:
+    game_on = True  # Display live score
+    DISPLAY_ROTATION = 90
+    refresh_time = GAME_ON_REFRESH  # seconds
+    print('Game is on: {}'.format(game_on))
+    print('Refresh: {}s\n'.format(refresh_time))
+    
+    game_info, match_title, game_score, game_tactics, game_penalties = wc_current()
+    
+else:
+    game_on = False  # Display schedule
+    DISPLAY_ROTATION = 270
+    refresh_time = GAME_OFF_REFRESH  # seconds
+    print('Game is on: {}'.format(game_on))
+    print('Refresh: {}s\n'.format(refresh_time))
+    
+    game_info, the_schedule, page_title = world_cup(hours = 0)
+
+#  game_on = False & game_info = False then get tomorrow's schedule
+if not game_info:
+    game_on = False  # Display schedule
+    DISPLAY_ROTATION = 90
+    refresh_time = GAME_OFF_REFRESH  # seconds
+    print('Game is: {} / Info is: {}'.format(game_on, game_info))
+    print('Refresh: {}s\n'.format(refresh_time))
+    
+    game_info, the_schedule, page_title = world_cup(hours = 24)
+    
+else:
+    print('Game is: {} / Info is: {}'.format(game_on, game_info))
+    print('Refresh: {}s\n'.format(refresh_time))
+    
+
 
 if not game_on:
+    print(str(game_info) + '\n')
     print(page_title)
     print(the_schedule)
 if game_on:
-    print(game_info)
+    print(str(game_info) + '\n')
     print(match_title)
     print(game_score)
     print(game_tactics)
     print(game_penalties)
+
+next_update_ts = ts() + refresh_time
+next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
+
+page_footer = 'Bat: {:0.1f}v - Next: {}'.format(
+    battery, next_update)
+
 print(page_footer)
 
 
@@ -530,10 +528,12 @@ display.show(main_group)
 
 
 # Font definitions
+
+SPARTAN_LIGHT = bitmap_font.load_font("fonts/LeagueSpartan-Light.bdf")
 SPARTAN_BOLD_16 = bitmap_font.load_font("fonts/LeagueSpartan-Bold-16.bdf")
 HELVETICA_BOLD_16 = bitmap_font.load_font("fonts/Helvetica-Bold-16.bdf")
 JUNCTION_24 = bitmap_font.load_font("fonts/Junction-regular-24.bdf")
-TERMINAL_FONT = terminalio.FONT
+TERMINAL_FONT = terminalio.FONT 
 
 # Make the background white
 rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
@@ -543,15 +543,16 @@ main_group.append(rect)
 # Create labels
 # https://docs.circuitpython.org/projects/display_text/en/latest/api.html#adafruit-display-text
 # https://github.com/adafruit/Adafruit_CircuitPython_Bitmap_Font/tree/main/examples/fonts
+
+# game_info, the_schedule, page_title
+
 if not game_on:
     page_title = label.Label(
         SPARTAN_BOLD_16,
         text=page_title,
-        bg_color=0xFFFFFF,
         color=0x000000,
-        x=10,
-        y=23,
-        anchor_point = (0.5, 0.5),
+        anchored_position = (10, 10),
+        anchor_point = (0, 0),
         base_alignment=True,
     )
 
@@ -559,10 +560,9 @@ if not game_on:
         TERMINAL_FONT,
         scale = 1,
         text=the_schedule,
-        bg_color=0xFFFFFF,
         color=0x000000,
-        x=20,
-        y=47,
+        anchored_position = (WIDTH * 0.5 - 10, HEIGHT * 0.5 + 0),
+        anchor_point = (0.5, 0.5),
         base_alignment=True,
     )
 
@@ -570,10 +570,10 @@ if not game_on:
 if game_on:
 
     page_body0 = label.Label(
-        HELVETICA_BOLD_16,
+        TERMINAL_FONT,
         scale = 1,
         text=game_info,
-        color=0x444444,
+        color=0x000000,
         anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 52),
         anchor_point = (0.5, 0.5),
         base_alignment=True,
@@ -583,37 +583,37 @@ if game_on:
         SPARTAN_BOLD_16,
         text=match_title,
         color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 24),
+        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 26),
         anchor_point = (0.5, 0.5),
         base_alignment=True,
     )
-# game_info, match_title, game_score, game_tactics, game_penalties
+    
     page_body1 = label.Label(
         HELVETICA_BOLD_16,
         scale = 1,
         text=game_score,
         color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 0),
+        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 6),
         anchor_point = (0.5, 0.5),
         base_alignment=True,
     )
     
     page_body2 = label.Label(
-        HELVETICA_BOLD_16,
+        SPARTAN_LIGHT,
         scale = 1,
         text=game_tactics,
-        color=0x444444,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 19),
+        color=0x000000,
+        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 13),
         anchor_point = (0.5, 0.5),
         base_alignment=True,
     )
     
     page_body3 = label.Label(
-        HELVETICA_BOLD_16,
+        SPARTAN_LIGHT,
         scale = 1,
         text=game_penalties,
-        color=0x444444,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 38),
+        color=0x000000,
+        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 30),
         anchor_point = (0.5, 0.5),
         base_alignment=True,
     )
@@ -623,22 +623,22 @@ page_footer = label.Label(
     text=page_footer,
     bg_color=0xFFFFFF,
     color=0x000000,
-    x=80,
-    y=126,
+    anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 58),
+    anchor_point = (0.5, 0.5),
     base_alignment=True,
 )
 
 if not game_on:
     main_group.append(page_title)
     main_group.append(page_body)
-    main_group.append(page_footer)
+    # main_group.append(page_footer)
 if game_on:
     main_group.append(page_body0)
     main_group.append(page_title)
     main_group.append(page_body1)
     main_group.append(page_body2)
     main_group.append(page_body3)
-    # main_group.append(page_footer)
+main_group.append(page_footer)
 
 # show the group
 display.show(main_group)
@@ -664,6 +664,4 @@ time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_tim
 # Exit the program, and then deep sleep until the alarm wakes us.
 alarm.exit_and_deep_sleep_until_alarms(time_alarm)
 # Does not return, so we never get here.
-
-
 
