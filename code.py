@@ -244,12 +244,14 @@ def wc_schedule(match_schedule, adjust_hours = 0):
     
     the_schedule = ''
     page_title = ('{}: {}\n'.format(tod_morrow, title_date))
+
+    
     for i in match_schedule:
         game_time = (i['datetime'])
         game_time = (game_time[0:19])
         game_time = (datetime.fromisoformat(game_time) +  # Game time as local time.
                timedelta(hours = TIME_ZONE_OFFSET))
-        
+
         schedule_items = [
             i['home_team']['country'],
             i['home_team']['goals'],
@@ -257,11 +259,11 @@ def wc_schedule(match_schedule, adjust_hours = 0):
             i['away_team']['goals']
             ]
         
-        print('\nschedule: {}'.format(schedule_items))
-        print('\n')
-        for item in range(len(schedule_items)):
-            if item == None:
-                item = '_'
+        # I gotta learn List Comprehension.
+        # https://docs.python.org/3/tutorial/datastructures.html?highlight=list%20comprehension#list-comprehensions
+        schedule_items = ['' if v is None else v for v in schedule_items]
+        
+        home_team_goals = str(i['home_team']['goals'])
         
         the_schedule = the_schedule + ('    {:<5}   {:>3} ({}) v. {:<3} ({})\n'.format(
             str(game_time.time())[0:5],
