@@ -1,11 +1,14 @@
 
 #TODO
 '''
+Functionality changed. Inverted will show tomorrow's schedule.
+Rightside up now show's today's schedule and automatically changes to Live Game
+when a game is on.
 - In-game stats when available.
-- Display next game info on Live Match page when no game is being played.
 - Favorite team details when turned vertically.
 - Fine-tune refresh times so MagTag only updates at midnight, just before a match, and then at regular intervals during a match.
 - DONE remove need for Adafruit credentials
+- DONE (displaying current day schedule instead) Display next game info on Live Match page when no game is being played.
 '''
 
 # built-in modules 
@@ -203,12 +206,12 @@ def world_cup(hours = 0):
             import os
             with open("wc_test_data.json", "r") as fp:
                 x = fp.read()
-                matches_today = json.loads(x)
+                match_schedule = json.loads(x)
                 
         except OSError as e:
             raise Exception("Could not read text file.")
     
-        page_title, the_schedule = wc_schedule(matches_today)
+        page_title, the_schedule = wc_schedule(match_schedule)
         
     else:
         GET_DATE = ((local_time(hours=hours))['date'])
@@ -218,36 +221,54 @@ def world_cup(hours = 0):
         # Fetching World Cup Today
         json_header = {"Accept": "application/json"}
         print("GETting schedule from:\n{}matches?{}".format(WORLD_CUP, API_PARAMETERS))
-        matches_today = requests.get("{}matches?{}".format(WORLD_CUP, API_PARAMETERS), headers = json_header)
+        match_schedule = requests.get("{}matches?{}".format(WORLD_CUP, API_PARAMETERS), headers = json_header)
         # matches_today.close()
-        matches_today = matches_today.json()
+        match_schedule = match_schedule.json()
 
-        page_title, the_schedule = wc_schedule(matches_today, hours)
+        page_title, the_schedule = wc_schedule(match_schedule, hours)
         
     game_info = True
     return(game_info, the_schedule, page_title)
 
 # Function to build schedule text for MagTag display
-def wc_schedule(matches_today, adjust_hours = 0):
+def wc_schedule(match_schedule, adjust_hours = 0):
     # JSON times are Zulu/UTC/GMT
     # Device is set to local time
     
-    title_date = ((local_time(hours = adjust_hours))['ctime'])[0:10]
+    title_date = ((local_time(hours = adjust_hours))['ctime'])[4:10]
+    
+    if adjust_hours < 24:
+        tod_morrow = 'Today'
+    else:
+        tod_morrow = 'Tomorrow'
     
     the_schedule = ''
-    page_title = ('{}\n'.format(title_date))
-    for i in matches_today:
+    page_title = ('{}: {}\n'.format(tod_morrow, title_date))
+    for i in match_schedule:
         game_time = (i['datetime'])
         game_time = (game_time[0:19])
         game_time = (datetime.fromisoformat(game_time) +  # Game time as local time.
                timedelta(hours = TIME_ZONE_OFFSET))
         
-        the_schedule = the_schedule + ('    {:<5}   {:>3} ({}) v. {:<3} ({})\n'.format(
-            str(game_time.time())[0:5],
+        schedule_items = [
             i['home_team']['country'],
             i['home_team']['goals'],
             i['away_team']['country'],
-            i['away_team']['goals'],
+            i['away_team']['goals']
+            ]
+        
+        print('\nschedule: {}'.format(schedule_items))
+        print('\n')
+        for item in range(len(schedule_items)):
+            if item == None:
+                item = '_'
+        
+        the_schedule = the_schedule + ('    {:<5}   {:>3} ({}) v. {:<3} ({})\n'.format(
+            str(game_time.time())[0:5],
+            schedule_items[0],
+            schedule_items[1],
+            schedule_items[2],
+            schedule_items[3],
             ))
     
     return(page_title, the_schedule)
@@ -286,49 +307,49 @@ def wc_current():
 # This function parses information on the current match.
 def match_stats(current_match):
 
-    # try:
-    # Parse current_match
-    match_details = {
-        # Match Title
-        "home_team" : current_match[0]['home_team']['name'], 
-        "away_team" : current_match[0]['away_team']['name'],      
-        "home_team_goals" : current_match[0]['home_team']['goals'],
-        "away_team_goals" : current_match[0]['away_team']['goals'],
-        # General Info
-        "match_time" : current_match[0]['time'],
-        "location" : current_match[0]['location'],
-        "stage_name" : current_match[0]['stage_name'],
-        # Team Info
-        "home_tactics" : current_match[0]['home_team_lineup']['tactics'],
-        "home_penalties" : current_match[0]['home_team']['penalties'],
-        "away_tactics" : current_match[0]['away_team_lineup']['tactics'],
-        "away_penalties" : current_match[0]['away_team']['penalties']
-        }
-           
-    # Host Time
-    local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
-    host_hours = (local_time(hours = local_time_offset))
-    host_hours = str(host_hours['time'])[0:5]
-    location = ('{!s} {}'.format(
-        match_details['location'], host_hours))
-          
-    # Create texts
-    game_info = ('{:>7}{:^24}{:<17}'.format(
-        match_details['match_time'], match_details['stage_name'], location))
-    
-    match_title = ('{1:>12}{0:^6}{2:<12}'.format(
-        '', match_details['home_team'], match_details['away_team']))
-    
-    game_score = ('{1:^7d}{0:^15}{2:^7d}'.format(
-        'Gol', match_details['home_team_goals'], match_details['away_team_goals']))
+    try:
+        # Parse current_match
+        match_details = {
+            # Match Title
+            "home_team" : current_match[0]['home_team']['name'], 
+            "away_team" : current_match[0]['away_team']['name'],      
+            "home_team_goals" : current_match[0]['home_team']['goals'],
+            "away_team_goals" : current_match[0]['away_team']['goals'],
+            # General Info
+            "match_time" : current_match[0]['time'],
+            "location" : current_match[0]['location'],
+            "stage_name" : current_match[0]['stage_name'],
+            # Team Info
+            "home_tactics" : current_match[0]['home_team_lineup']['tactics'],
+            "home_penalties" : current_match[0]['home_team']['penalties'],
+            "away_tactics" : current_match[0]['away_team_lineup']['tactics'],
+            "away_penalties" : current_match[0]['away_team']['penalties']
+            }
+               
+        # Host Time
+        local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
+        host_hours = (local_time(hours = local_time_offset))
+        host_hours = str(host_hours['time'])[0:5]
+        location = ('{!s} {}'.format(
+            match_details['location'], host_hours))
+              
+        # Create texts
+        game_info = ('{:>7}{:^22}{:<17}'.format(
+            match_details['match_time'], match_details['stage_name'], location))
         
-    game_tactics = ('{:>2}{:^21}{:<2}'.format(
-        match_details['home_tactics'], 'Tac', match_details['away_tactics']))
-    
-    game_penalties = ('{:^7d}{:^21}{:^7d}'.format(
-        match_details['home_penalties'], 'Pen', match_details['away_penalties']))          
+        match_title = ('{1:>12}{0:^6}{2:<12}'.format(
+            '', match_details['home_team'], match_details['away_team']))
+        
+        game_score = ('{1:^7d}{0:^15}{2:^7d}'.format(
+            'Gol', match_details['home_team_goals'], match_details['away_team_goals']))
+            
+        game_tactics = ('{:>2}{:^21}{:<2}'.format(
+            match_details['home_tactics'], 'Tac', match_details['away_tactics']))
+        
+        game_penalties = ('{:^7d}{:^21}{:^7d}'.format(
+            match_details['home_penalties'], 'Pen', match_details['away_penalties']))          
 
-    '''
+    
     except:
         #TODO Determine next match and display basic stats.
         # - GET list of upcoming matches
@@ -343,7 +364,7 @@ def match_stats(current_match):
         game_score = ''
         game_tactics = ''
         game_penalties = ''
-    '''        
+           
     return(game_info, match_title, game_score, game_tactics, game_penalties)
 
 
@@ -448,45 +469,49 @@ def detect_mode():
 # Rotation determines what screen to display and refresh_time.
 
 #TODO a vertical orientation to display favorite team details.
-if y < 0:
-    game_on = True  # Display live score
-    DISPLAY_ROTATION = 90
+if y > 0:
+    inverted = False  # Display live score
+    DISPLAY_ROTATION = 270
     refresh_time = GAME_ON_REFRESH  # seconds
-    print('Game is on: {}'.format(game_on))
+    print('Game is on: {}'.format(inverted))
     print('Refresh: {}s\n'.format(refresh_time))
     
     game_info, match_title, game_score, game_tactics, game_penalties = wc_current()
+    # game_info, the_schedule, page_title = world_cup(hours = 0)
     
 else:
-    game_on = False  # Display schedule
+    inverted = True  # Display schedule
+    DISPLAY_ROTATION = 90
+    refresh_time = GAME_OFF_REFRESH  # seconds
+    print('Game is on: {}'.format(inverted))
+    print('Refresh: {}s\n'.format(refresh_time))
+    
+    # game_info, match_title, game_score, game_tactics, game_penalties = wc_current()
+    game_info, the_schedule, page_title = world_cup(hours = 24)   
+    
+print('\ninverted: {}\ngame_info: {}\n'.format(inverted, game_info))
+
+#  inverted = False & game_info = False then get tomorrow's schedule
+if not game_info:
+    inverted = True  # Display schedule
     DISPLAY_ROTATION = 270
     refresh_time = GAME_OFF_REFRESH  # seconds
-    print('Game is on: {}'.format(game_on))
+    print('Game is: {} / Info is: {}'.format(inverted, game_info))
     print('Refresh: {}s\n'.format(refresh_time))
     
     game_info, the_schedule, page_title = world_cup(hours = 0)
-
-#  game_on = False & game_info = False then get tomorrow's schedule
-if not game_info:
-    game_on = False  # Display schedule
-    DISPLAY_ROTATION = 90
-    refresh_time = GAME_OFF_REFRESH  # seconds
-    print('Game is: {} / Info is: {}'.format(game_on, game_info))
-    print('Refresh: {}s\n'.format(refresh_time))
-    
-    game_info, the_schedule, page_title = world_cup(hours = 24)
     
 else:
-    print('Game is: {} / Info is: {}'.format(game_on, game_info))
+    print('Game is: {} / Info is: {}'.format(inverted, game_info))
     print('Refresh: {}s\n'.format(refresh_time))
     
 
 
-if not game_on:
+if inverted:
     print(str(game_info) + '\n')
     print(page_title)
     print(the_schedule)
-if game_on:
+if not inverted:
     print(str(game_info) + '\n')
     print(match_title)
     print(game_score)
@@ -546,7 +571,7 @@ main_group.append(rect)
 
 # game_info, the_schedule, page_title
 
-if not game_on:
+if inverted:
     page_title = label.Label(
         SPARTAN_BOLD_16,
         text=page_title,
@@ -567,7 +592,7 @@ if not game_on:
     )
 
 # game_info, match_title, game_score, game_tactics, game_penalties
-if game_on:
+if not inverted:
 
     page_body0 = label.Label(
         TERMINAL_FONT,
@@ -628,11 +653,11 @@ page_footer = label.Label(
     base_alignment=True,
 )
 
-if not game_on:
+if inverted:
     main_group.append(page_title)
     main_group.append(page_body)
     # main_group.append(page_footer)
-if game_on:
+if not inverted:
     main_group.append(page_body0)
     main_group.append(page_title)
     main_group.append(page_body1)
@@ -664,4 +689,6 @@ time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_tim
 # Exit the program, and then deep sleep until the alarm wakes us.
 alarm.exit_and_deep_sleep_until_alarms(time_alarm)
 # Does not return, so we never get here.
+
+
 
