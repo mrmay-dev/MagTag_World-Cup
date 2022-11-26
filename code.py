@@ -253,9 +253,9 @@ def wc_schedule(match_schedule, adjust_hours = 0):
                timedelta(hours = TIME_ZONE_OFFSET))
 
         schedule_items = [
-            i['home_team']['country'],
+            i['home_team']['name'],
             i['home_team']['goals'],
-            i['away_team']['country'],
+            i['away_team']['name'],
             i['away_team']['goals']
             ]
         
@@ -265,12 +265,12 @@ def wc_schedule(match_schedule, adjust_hours = 0):
         
         home_team_goals = str(i['home_team']['goals'])
         
-        the_schedule = the_schedule + ('    {:<5}   {:>3} ({}) v. {:<3} ({})\n'.format(
+        the_schedule = the_schedule + ('{:<5} {:>12} ({}) v ({}) {:<0}\n'.format(
             str(game_time.time())[0:5],
             schedule_items[0],
             schedule_items[1],
-            schedule_items[2],
             schedule_items[3],
+            schedule_items[2],
             ))
     
     return(page_title, the_schedule)
@@ -588,7 +588,7 @@ if inverted:
         scale = 1,
         text=the_schedule,
         color=0x000000,
-        anchored_position = (WIDTH * 0.5 - 10, HEIGHT * 0.5 + 0),
+        anchored_position = (WIDTH * 0.5 - 0, HEIGHT * 0.5 + 0),
         anchor_point = (0.5, 0.5),
         base_alignment=True,
     )
@@ -650,7 +650,7 @@ page_footer = label.Label(
     text=page_footer,
     bg_color=0xFFFFFF,
     color=0x000000,
-    anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 58),
+    anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 56),
     anchor_point = (0.5, 0.5),
     base_alignment=True,
 )
