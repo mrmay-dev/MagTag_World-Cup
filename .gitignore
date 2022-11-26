@@ -126,3 +126,4 @@ dmypy.json
 # Stuff that's not needed
 **/.DS_Store 
 **/test-*.py 
+lib/
