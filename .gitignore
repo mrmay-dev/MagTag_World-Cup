@@ -123,6 +123,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-fonts/.DS_Store
-
-.DS_Store
+# Stuff that's not needed
+**/.DS_Store 
+**/test-*.py 
