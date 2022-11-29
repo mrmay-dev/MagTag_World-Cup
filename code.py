@@ -4,14 +4,14 @@
 Functionality changed. Inverted will show tomorrow's schedule.
 Rightside up now show's today's schedule and automatically changes to Live Game
 when a game is on.
-- In-game stats when available.
 - Favorite team details when turned vertically.
-- Fine-tune refresh times so MagTag only updates at midnight, just before a match, and then at regular intervals during a match.
-- DONE remove need for Adafruit credentials
-- DONE (displaying current day schedule instead) Display next game info on Live Match page when no game is being played.
+- IN PROGRESS. Fine-tune refresh times so MagTag only updates at midnight, just before a match, and then at regular intervals during a match.
+- NOT POSSIBLE YET. In-game stats when available.
+- DONE. remove need for Adafruit credentials
+- DONE. (displaying current day schedule instead) Display next game info on Live Match page when no game is being played.
 '''
 
-# built-in modules 
+# built-in modules
 import gc
 import time as atime
 import alarm
@@ -60,7 +60,7 @@ TIME_ZONE_NAME = 'PST'
 TIME_ZONE_OFFSET = -8
 
 # Refresh times
-GAME_ON_REFRESH = 60  # in seconds
+GAME_ON_REFRESH = 12  # in seconds (10 sec minimum. API rate limiting)
 GAME_OFF_REFRESH = (10 * 60)  # in seconds
 
 # For future, change to timezone of cup host
@@ -82,14 +82,66 @@ pixels = neopixel.NeoPixel(board.NEOPIXEL, 4, brightness=1, auto_write=True)
 
 
 # Useful functions ---------
+# a function to facilitate audio signals
+def sound_signal(duration=0, frequency=0, time_off=0):
+    #TODO Add beep to signal a goal.
+    # 
+    # board.SPEAKER
+    # board.SPEAKER_ENABLE
+    # SPEAKER_POWER.switch_to_output(False)  # Flase = ON, True = OFF
+    
 # flashing LEDs routine
 def np_signal(color=0x220000, flashes=3, interval=.15, time_off=1):
-    NP_POWER.switch_to_output(False)
+    NP_POWER.switch_to_output(False)  # Flase = ON, True = OFF
     for i in range(flashes):
         atime.sleep(interval * time_off)
         pixels.fill(color)
         atime.sleep(interval)
         pixels.fill(0)
+
+def update_alert():
+    #TODO trigger an audo alert on goal change.
+    # sound_signal()
+    # Blink LEDs to signal a change in goals.
+    colors = [0x110900, 0x001111, 0x110011]
+    flashes = 1
+    interval = 0.5
+    time_off = 0.1
+    for i in range(len(colors)):
+        np_signal(color=colors[i], flashes=flashes,
+                  interval=interval, time_off=time_off)
+        
+        
+def goal_simulator():  #  A simple function to simulate a new goal when testing.
+    add_goal = 0
+    rand_sequence = (1,3,9,7,2,8,0,6,5,4,)
+    rn = random.randint(0,9)
+    rand_num = rand_sequence[rn]
+    if rand_num < 3:
+        add_goal = 1
+    print(rand_num, add_goal)
+    return(add_goal)
+
+
+# Data Update -------------------
+# These lines activate board components.
+# Be sure to load modules/drivers first.
+def update_data():
+    # Turn things off
+    NP_POWER.switch_to_output(False)
+
+    # Light Sensor
+    # light = light_sensor.value
+    # light = (((light_sensor.value - 0) / 65535.0) * 3.3 * 2) * 10000
+
+    # Battery Voltage
+    # battery = voltage_pin.value
+    battery = ((voltage_pin.value / 65535.0) * 3.3 * 2) * 1
+    
+    # On-board accelerometer
+    x, y, z = lis.acceleration
+    
+    return(x, y, z, battery)
 
 
 # Time Functions ------------------
@@ -116,6 +168,8 @@ def ts():
 
 
 # Network Functions ------------------
+def NETWORK_FUNCTIONS():
+    return
 
 def wifi_connect(choice=0):
     # Connect to local network
@@ -176,28 +230,9 @@ def message(client, feed_id, payload):
     return(ts)
 
 
-# Data Update -------------------
-# These lines activate board components.
-# Be sure to load modules/drivers first.
-def update_data():
-    # Turn things off
-    NP_POWER.switch_to_output(False)
-
-    # Light Sensor
-    # light = light_sensor.value
-    # light = (((light_sensor.value - 0) / 65535.0) * 3.3 * 2) * 10000
-
-    # Battery Voltage
-    # battery = voltage_pin.value
-    battery = ((voltage_pin.value / 65535.0) * 3.3 * 2) * 1
-    
-    # On-board accelerometer
-    x, y, z = lis.acceleration
-    
-    return(x, y, z, battery)
-
-
 # World Cup Schedule functions --------------------
+def TEXT_FORMAT():
+    return
 
 # This function GETs today's schedule (GMT times).
 def world_cup(hours = 0):
@@ -253,19 +288,19 @@ def wc_schedule(match_schedule, adjust_hours = 0):
                timedelta(hours = TIME_ZONE_OFFSET))
 
         schedule_items = [
-            i['home_team']['name'],
-            i['home_team']['goals'],
             i['away_team']['name'],
-            i['away_team']['goals']
+            i['away_team']['goals'],
+            i['home_team']['name'],
+            i['home_team']['goals']
             ]
         
         # I gotta learn List Comprehension.
         # https://docs.python.org/3/tutorial/datastructures.html?highlight=list%20comprehension#list-comprehensions
         schedule_items = ['' if v is None else v for v in schedule_items]
         
-        home_team_goals = str(i['home_team']['goals'])
+        # home_team_goals = str(i['home_team']['goals'])
         
-        the_schedule = the_schedule + ('{:<5} {:>12} ({}) v ({}) {:<0}\n'.format(
+        the_schedule = the_schedule + ('{:<5} {:>11} ({}) v ({}) {:<0}\n'.format(
             str(game_time.time())[0:5],
             schedule_items[0],
             schedule_items[1],
@@ -278,7 +313,7 @@ def wc_schedule(match_schedule, adjust_hours = 0):
 
 
 # Function GETs current game stats.
-def wc_current():
+def wc_current(old_score):
     
     if wifi.radio.ipv4_gateway is None:
         import os
@@ -290,7 +325,7 @@ def wc_current():
         except OSError as e:
             raise Exception("Could not read text file.")
     
-        game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match)
+        game_stats = match_stats(current_match, old_score)
 
         print('Using test data.\n')
 
@@ -302,54 +337,73 @@ def wc_current():
         print("{}matches/current\n".format(WORLD_CUP))
         current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
         
-        game_info, match_title, game_score, game_tactics, game_penalties = match_stats(current_match.json())
+        game_stats = match_stats(current_match.json(), old_score)
         
-    return(game_info, match_title, game_score, game_tactics, game_penalties)
+    return(game_stats)
+
 
 # This function parses information on the current match.
-def match_stats(current_match):
+def match_stats(current_match, old_score):
 
     try:
         # Parse current_match
         match_details = {
             # Match Title
-            "home_team" : current_match[0]['home_team']['name'], 
-            "away_team" : current_match[0]['away_team']['name'],      
-            "home_team_goals" : current_match[0]['home_team']['goals'],
-            "away_team_goals" : current_match[0]['away_team']['goals'],
+            "away_team" : current_match[0]['home_team']['name'], 
+            "home_team" : current_match[0]['away_team']['name'],      
+            "away_team_goals" : current_match[0]['home_team']['goals'],
+            "home_team_goals" : current_match[0]['away_team']['goals'],
             # General Info
             "match_time" : current_match[0]['time'],
             "location" : current_match[0]['location'],
             "stage_name" : current_match[0]['stage_name'],
             # Team Info
-            "home_tactics" : current_match[0]['home_team_lineup']['tactics'],
-            "home_penalties" : current_match[0]['home_team']['penalties'],
-            "away_tactics" : current_match[0]['away_team_lineup']['tactics'],
-            "away_penalties" : current_match[0]['away_team']['penalties']
+            "away_tactics" : current_match[0]['home_team_lineup']['tactics'],
+            "away_penalties" : current_match[0]['home_team']['penalties'],
+            "home_tactics" : current_match[0]['away_team_lineup']['tactics'],
+            "home_penalties" : current_match[0]['away_team']['penalties']
             }
-               
+            
+            
+        if wifi.radio.ipv4_gateway is None:
+            add_goal = goal_simulator()
+            match_details['away_team_goals'] = (match_details['away_team_goals'] + add_goal)
+                
+        new_score = (match_details['away_team_goals'], match_details['home_team_goals'])
+        
+        if new_score == old_score:
+            new_goal = False
+        else:
+            new_goal = True
+        
         # Host Time
         local_time_offset = (-1 * TIME_ZONE_OFFSET + HOST_TIME)
         host_hours = (local_time(hours = local_time_offset))
         host_hours = str(host_hours['time'])[0:5]
-        location = ('{!s} {}'.format(
+        location = ('{!s}'.format(
             match_details['location'], host_hours))
               
         # Create texts
-        game_info = ('{:>7}{:^22}{:<17}'.format(
+        game_info = ('{:>7}{:^29}{:<12}'.format(
             match_details['match_time'], match_details['stage_name'], location))
         
         match_title = ('{1:>12}{0:^6}{2:<12}'.format(
-            '', match_details['home_team'], match_details['away_team']))
+            '', match_details['away_team'], match_details['home_team']))
         
-        game_score = ('{1:^7d}{0:^15}{2:^7d}'.format(
-            'Gol', match_details['home_team_goals'], match_details['away_team_goals']))
+        if new_goal:
+            game_score = ('{1:^7d}{0:^15}{2:^7d}'.format(
+                'Gol', match_details['away_team_goals'], match_details['home_team_goals']))
+        if not new_goal:
+            game_score = ('{1:^7d}{0:^15}{2:^7d}'.format(
+                '---', match_details['away_team_goals'], match_details['home_team_goals']))
             
         game_tactics = ('{:>2}{:^21}{:<2}'.format(
-            match_details['home_tactics'], 'Tac', match_details['away_tactics']))
+            match_details['away_tactics'], 'Tac', match_details['home_tactics']))
         
         game_penalties = ('{:^7d}{:^21}{:^7d}'.format(
-            match_details['home_penalties'], 'Pen', match_details['away_penalties']))          
+            match_details['away_penalties'], 'Pen', match_details['home_penalties']))
+        
+        old_score = new_score
 
     
     except:
@@ -366,14 +420,64 @@ def match_stats(current_match):
         game_score = ''
         game_tactics = ''
         game_penalties = ''
-           
-    return(game_info, match_title, game_score, game_tactics, game_penalties)
+        
+    
+    print('match_stats Old Goals: {}'.format(old_score))
+    game_stats =  (game_info, match_title, game_score, game_tactics, game_penalties, old_score)    
+    return(game_stats)
 
+
+
+# Display Setup
+def DISPLAY_SETUP():
+    return
+
+# Display object
+WIDTH = 296
+HEIGHT = 128
+display = board.DISPLAY
+main_group = displayio.Group()
+display.show(main_group)
+
+
+# Font definitions
+SPARTAN_LIGHT = bitmap_font.load_font("fonts/LeagueSpartan-Light.bdf")
+SPARTAN_BOLD_16 = bitmap_font.load_font("fonts/LeagueSpartan-Bold-16.bdf")
+HELVETICA_BOLD_16 = bitmap_font.load_font("fonts/Helvetica-Bold-16.bdf")
+JUNCTION_24 = bitmap_font.load_font("fonts/Junction-regular-24.bdf")
+TERMINAL_FONT = terminalio.FONT 
+
+
+def try_refresh():
+    try:
+        board.DISPLAY.refresh()
+    except RuntimeError as too_soon_error:
+        # catch refresh too soon
+        print(too_soon_error)
+        print("waiting before retry refresh()")
+        time.sleep(10)
+        board.DISPLAY.refresh()
+        
+
+# Create labels
+# https://docs.circuitpython.org/projects/display_text/en/latest/api.html#adafruit-display-text
+# https://github.com/adafruit/Adafruit_CircuitPython_Bitmap_Font/tree/main/examples/fonts
+
+# if the screen is inverted:
+
+
+def set_page_footer():
+    next_update_ts = ts() + refresh_time
+    next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
+
+    page_footer = 'Bat: {:0.1f}v - Next: {}'.format(
+        battery, next_update)
+    return(page_footer)
 
 
 # ------ Main Program ------
 
-def main_program():
+def MAIN_PROGRAM():
     return
 
 # Comment out for test mode and use cached JSON files.
@@ -385,12 +489,12 @@ print("My gateway is {}".format(wifi.radio.ipv4_gateway))
 print("My IP address is {}\n".format(wifi.radio.ipv4_address))
 
 print('Battery: {}'.format(battery))
-print('x:{} y:{} z:{}\n'.format(x, y, z))
+print('x: {} y: {} z: {}\n'.format(x, y, z))
 
 
 # WiFi Setup ------------------
-# Use test data 
-if wifi.radio.ipv4_gateway is None:
+
+if wifi.radio.ipv4_gateway is None:  # Use test data 
     
     now_time = str((local_time())['time'])[0:5]
     print('The current time is: {}, ({})'.format(now_time, ts()))
@@ -465,23 +569,156 @@ else:  # use live data
     print('The current time is: {}, ({})'.format(now_time, ts()))
     
 
-def detect_mode():
-    return
+
 # Screen Decision Routine
 # Rotation determines what screen to display and refresh_time.
+# Logic to display game stats when a game is live.
 
 #TODO a vertical orientation to display favorite team details.
+
 if y > 0:
+    def game_is_running():
+        return
     inverted = False  # Display live score
     DISPLAY_ROTATION = 270
-    refresh_time = GAME_ON_REFRESH  # seconds
-    print('Game is on: {}'.format(inverted))
-    print('Refresh: {}s\n'.format(refresh_time))
+    display.rotation = DISPLAY_ROTATION
     
-    game_info, match_title, game_score, game_tactics, game_penalties = wc_current()
-    # game_info, the_schedule, page_title = world_cup(hours = 0)
+    refresh_time = GAME_ON_REFRESH  # seconds
+    # refresh_time = 20  # seconds
+    old_game_stats = ('FIRST RUN', '','')
+    old_score = (0, 0)
+    
+    while True:        
+        game_stats = wc_current(old_score)
+        # game_stats = (game_info, match_title, game_score, game_tactics, game_penalties, old_goals)
+        
+        print('{}\n\n{}\n\n{}\n\n'.format(game_stats[0], game_stats, old_game_stats))
+        
+        if game_stats[2] == old_game_stats[2]:
+            gol = False
+            print('no new gol\n')
+        else:
+            print('NEW gol!\n')
+            gol = True
+        
+        if game_stats[0] == False:
+            game_info = game_stats[0]
+            break
+        
+        if game_stats == old_game_stats:
+            pass
+        
+        else:
+        
+            game_info = game_stats[0]
+            match_title = game_stats[1]
+            game_score = game_stats[2]
+            game_tactics = game_stats[3]
+            game_penalties = game_stats[4]
+            
+            old_game_stats = game_stats
+            
+            print(game_info)
+            print(match_title)
+            print(game_score)
+            print(game_tactics)
+            print(game_penalties)
+            
+            page_footer = '{:0.1f}v'.format(battery)
+            print(page_footer)
+            
+            # Label Setup
+            
+            # Make the background white
+            rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
+
+            game_page_title = label.Label(
+                SPARTAN_BOLD_16,
+                text=match_title,
+                color=0x000000,
+                anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 46),
+                anchor_point = (0.5, 0.5),
+                base_alignment=True,
+            )
+
+            game_page_body1 = label.Label(
+                HELVETICA_BOLD_16,
+                scale = 1,
+                text=game_score,
+                color=0x000000,
+                anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 26),
+                anchor_point = (0.5, 0.5),
+                base_alignment=True,
+            )
+
+            game_page_body2 = label.Label(
+                SPARTAN_LIGHT,
+                scale = 1,
+                text=game_tactics,
+                color=0x000000,
+                anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 8),
+                anchor_point = (0.5, 0.5),
+                base_alignment=True,
+            )
+
+            game_page_body3 = label.Label(
+                SPARTAN_LIGHT,
+                scale = 1,
+                text=game_penalties,
+                color=0x000000,
+                anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 10),
+                anchor_point = (0.5, 0.5),
+                base_alignment=True,
+            )
+            '''
+            WIDTH = 296
+            HEIGHT = 128
+            '''
+            
+            game_page_body0 = label.Label(
+                TERMINAL_FONT,
+                scale = 1,
+                text=game_info,
+                color=0x000000,
+                anchor_point = (0.5, 1),
+                anchored_position = (WIDTH * 0.5 - 0, HEIGHT - 2),
+                base_alignment=True,
+            )
+            
+            game_page_footer = label.Label(
+                TERMINAL_FONT,
+                text=page_footer,
+                bg_color=0xFFFFFF,
+                color=0x000000,
+                anchor_point = (1, 0),
+                anchored_position = (WIDTH  - 3, 2),
+                base_alignment=True,
+            )
+            
+            main_group.append(rect)
+            main_group.append(game_page_body0)
+            main_group.append(game_page_title)
+            main_group.append(game_page_body1)
+            main_group.append(game_page_body2)
+            main_group.append(game_page_body3)
+            main_group.append(game_page_footer)
+
+            # show the group
+            display.show(main_group)
+            
+            # refresh display
+            if gol:
+                update_alert()
+            try_refresh()
+        
+        print('\nnext update in {}s\n'.format(refresh_time))
+        atime.sleep(refresh_time)
+    
+    print('Exiting game on loop.\n')
     
 else:
+    def show_me_the_schedule():
+        return
     inverted = True  # Display schedule
     DISPLAY_ROTATION = 90
     refresh_time = GAME_OFF_REFRESH  # seconds
@@ -491,16 +728,18 @@ else:
     # game_info, match_title, game_score, game_tactics, game_penalties = wc_current()
     game_info, the_schedule, page_title = world_cup(hours = 24)   
     
-print('\ninverted: {}\ngame_info: {}\n'.format(inverted, game_info))
+    print('\ninverted: {}\ngame_info: {}\n'.format(inverted, game_info))
 
-#  inverted = False & game_info = False then get tomorrow's schedule
-if not game_info:
-    inverted = True  # Display schedule
+    #  inverted = False & game_info = False then get tomorrow's schedule
+
+if not game_info:  # when the game ends or no game is running
+    inverted = True  # This triggers the schedule routine.
     DISPLAY_ROTATION = 270
     refresh_time = GAME_OFF_REFRESH  # seconds
+    
     print('Game is: {} / Info is: {}'.format(inverted, game_info))
     print('Refresh: {}s\n'.format(refresh_time))
-    
+
     game_info, the_schedule, page_title = world_cup(hours = 0)
     
 else:
@@ -508,144 +747,37 @@ else:
     print('Refresh: {}s\n'.format(refresh_time))
     
 
+page_footer = set_page_footer()
 
-if inverted:
-    print(str(game_info) + '\n')
-    print(page_title)
-    print(the_schedule)
-if not inverted:
-    print(str(game_info) + '\n')
-    print(match_title)
-    print(game_score)
-    print(game_tactics)
-    print(game_penalties)
-
-next_update_ts = ts() + refresh_time
-next_update = str((datetime.fromtimestamp(next_update_ts)).time())[0:5]
-
-page_footer = 'Bat: {:0.1f}v - Next: {}'.format(
-    battery, next_update)
-
+print(str(game_info) + '\n')
+print(page_title)
+print(the_schedule)
 print(page_footer)
 
 
-# Display Setup
-
-def disiplay_setup():
-    return
-
-def try_refresh():
-    try:
-        board.DISPLAY.refresh()
-    except RuntimeError as too_soon_error:
-        # catch refresh too soon
-        print(too_soon_error)
-        print("waiting before retry refresh()")
-        time.sleep(10)
-        board.DISPLAY.refresh()
-
-
-# Display object
-WIDTH = 296
-HEIGHT = 128
-display = board.DISPLAY
-display.rotation = DISPLAY_ROTATION
-main_group = displayio.Group()
-display.show(main_group)
-
-
-# Font definitions
-
-SPARTAN_LIGHT = bitmap_font.load_font("fonts/LeagueSpartan-Light.bdf")
-SPARTAN_BOLD_16 = bitmap_font.load_font("fonts/LeagueSpartan-Bold-16.bdf")
-HELVETICA_BOLD_16 = bitmap_font.load_font("fonts/Helvetica-Bold-16.bdf")
-JUNCTION_24 = bitmap_font.load_font("fonts/Junction-regular-24.bdf")
-TERMINAL_FONT = terminalio.FONT 
-
 # Make the background white
 rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
-main_group.append(rect)
 
+schedule_page_title = label.Label(
+    SPARTAN_BOLD_16,
+    text=page_title,
+    color=0x000000,
+    anchored_position = (10, 10),
+    anchor_point = (0, 0),
+    base_alignment=True,
+)
 
-# Create labels
-# https://docs.circuitpython.org/projects/display_text/en/latest/api.html#adafruit-display-text
-# https://github.com/adafruit/Adafruit_CircuitPython_Bitmap_Font/tree/main/examples/fonts
+schedule_page_body = label.Label(
+    TERMINAL_FONT,
+    scale = 1,
+    text=the_schedule,
+    color=0x000000,
+    anchored_position = (WIDTH * 0.5 - 0, HEIGHT * 0.5 + 0),
+    anchor_point = (0.5, 0.5),
+    base_alignment=True,
+)
 
-# game_info, the_schedule, page_title
-
-if inverted:
-    page_title = label.Label(
-        SPARTAN_BOLD_16,
-        text=page_title,
-        color=0x000000,
-        anchored_position = (10, 10),
-        anchor_point = (0, 0),
-        base_alignment=True,
-    )
-
-    page_body = label.Label(
-        TERMINAL_FONT,
-        scale = 1,
-        text=the_schedule,
-        color=0x000000,
-        anchored_position = (WIDTH * 0.5 - 0, HEIGHT * 0.5 + 0),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-
-# game_info, match_title, game_score, game_tactics, game_penalties
-if not inverted:
-
-    page_body0 = label.Label(
-        TERMINAL_FONT,
-        scale = 1,
-        text=game_info,
-        color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 52),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-    
-    page_title = label.Label(
-        SPARTAN_BOLD_16,
-        text=match_title,
-        color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 26),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-    
-    page_body1 = label.Label(
-        HELVETICA_BOLD_16,
-        scale = 1,
-        text=game_score,
-        color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 - 6),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-    
-    page_body2 = label.Label(
-        SPARTAN_LIGHT,
-        scale = 1,
-        text=game_tactics,
-        color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 13),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-    
-    page_body3 = label.Label(
-        SPARTAN_LIGHT,
-        scale = 1,
-        text=game_penalties,
-        color=0x000000,
-        anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 30),
-        anchor_point = (0.5, 0.5),
-        base_alignment=True,
-    )
-
-page_footer = label.Label(
+schedule_page_footer = label.Label(
     TERMINAL_FONT,
     text=page_footer,
     bg_color=0xFFFFFF,
@@ -655,42 +787,37 @@ page_footer = label.Label(
     base_alignment=True,
 )
 
-if inverted:
-    main_group.append(page_title)
-    main_group.append(page_body)
-    # main_group.append(page_footer)
-if not inverted:
-    main_group.append(page_body0)
-    main_group.append(page_title)
-    main_group.append(page_body1)
-    main_group.append(page_body2)
-    main_group.append(page_body3)
-main_group.append(page_footer)
+
+display = board.DISPLAY
+main_group = displayio.Group()
+display.show(main_group)
+display.rotation = DISPLAY_ROTATION
+
+main_group.append(rect)
+main_group.append(schedule_page_title)
+main_group.append(schedule_page_body)
+main_group.append(schedule_page_footer)
 
 # show the group
 display.show(main_group)
 
 # refresh display
+# update_alert()
 try_refresh()
 
 
-# Blink LEDs to signal that screen has been updated
-colors = [0x110900, 0x001111, 0x110011]
-flashes = 1
-interval = 0.5
-time_off = 0.1
-for i in range(len(colors)):
-    np_signal(color=colors[i], flashes=flashes,
-              interval=interval, time_off=time_off)
-
 print('\nscreen refreshed\ngoing to sleep for {:0.0f} minutes.'.format(refresh_time/60))
+# Turn things off:
+wifi.radio.enabled = False
+NP_POWER.switch_to_output(False)  # Flase = ON, True = OFF
+# SPEAKER_POWER.switch_to_output(False)  # Flase = ON, True = OFF
 
-
+def go_to_sleep():
+    return
 # Create a an alarm 
 time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_time)
 # Exit the program, and then deep sleep until the alarm wakes us.
 alarm.exit_and_deep_sleep_until_alarms(time_alarm)
 # Does not return, so we never get here.
-
 
 
