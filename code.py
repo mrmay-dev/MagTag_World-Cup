@@ -46,28 +46,27 @@ from adafruit_io.adafruit_io import IO_HTTP
 import adafruit_lis3dh
 import neopixel
 
+# See sample secrets.py file for details.
+from secrets import secrets
+
 
 # User Settings -----------
 
-# See sample secrets.py file for details.
-from secrets import secrets
 # WiFi Credentials
 SSID = secrets["ssid"]
 PASSWORD = secrets["password"]
-# SSID = secrets["ssid_2"]
-# PASSWORD = secrets["password_2"]
-# SSID = 'FUSD-Guest'
 
 # Change these to meet your location
 TIME_ZONE_NAME = 'PST'
 TIME_ZONE_OFFSET = -8
 
 # Refresh times
-GAME_ON_REFRESH = 12  # in seconds (10 sec minimum. API rate limiting)
+GAME_ON_REFRESH = 12  # in seconds (10 sec minimum. API rate limit is 10.
 GAME_OFF_REFRESH = (10 * 60)  # in seconds
 
 # For future, change to timezone of cup host
 HOST_TIME = 3
+
 
 # Configurations ------
 
