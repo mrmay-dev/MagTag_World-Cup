@@ -128,3 +128,4 @@ fonts/.DS_Store
 .stversions
 .stfolder
 .stignore
+test*
