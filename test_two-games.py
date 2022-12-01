@@ -29,6 +29,7 @@ import ssl
 import wifi
 import socketpool
 import ipaddress
+import simpleio
 
 # External Modules
 # Time
@@ -46,22 +47,24 @@ from adafruit_io.adafruit_io import IO_HTTP
 import adafruit_lis3dh
 import neopixel
 
-# See sample secrets.py file for details.
-from secrets import secrets
-
 
 # User Settings -----------
 
+# See sample secrets.py file for details.
+from secrets import secrets
 # WiFi Credentials
+# SSID = 'FUSD-Guest'
 SSID = secrets["ssid"]
 PASSWORD = secrets["password"]
+# SSID = secrets["ssid_2"]
+# PASSWORD = secrets["password_2"]
 
 # Change these to meet your location
 TIME_ZONE_NAME = 'PST'
 TIME_ZONE_OFFSET = -8
 
 # Refresh times
-GAME_ON_REFRESH = 12  # in seconds (10 sec minimum. API rate limit is 10.
+GAME_ON_REFRESH = 12  # in seconds (10 sec minimum. API rate limiting)
 GAME_OFF_REFRESH = (10 * 60)  # in seconds
 
 # For future, change to timezone of cup host
@@ -73,9 +76,13 @@ HOST_TIME = 3
 # I2C Devices
 i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
 
-# Turn things off
+# Configure NeoPixels and Speaker
 NP_POWER = DigitalInOut(board.NEOPIXEL_POWER)
+SPEAKER_POWER = DigitalInOut(board.SPEAKER_ENABLE)
+
+# Turn things off
 NP_POWER.switch_to_output(True)  # OFF = True, ON = False
+SPEAKER_POWER.switch_to_output(False)  # Flase = OFF, True = ON
 
 # set up hardware
 lis = adafruit_lis3dh.LIS3DH_I2C(i2c, address=0x19)
@@ -83,19 +90,28 @@ voltage_pin = AnalogIn(board.VOLTAGE_MONITOR)
 pixels = neopixel.NeoPixel(board.NEOPIXEL, 4, brightness=1, auto_write=True)
 
 
+
 # Useful functions ---------
 # a function to facilitate audio signals
-def sound_signal(duration=0, frequency=0, time_off=0):
-    #TODO Add beep to signal a goal.
-    # 
-    # board.SPEAKER
-    # board.SPEAKER_ENABLE
-    # SPEAKER_POWER.switch_to_output(False)  # Flase = ON, True = OFF
-    return
-    
+def sound_signal(frequency = 440, duration = .5, time_off=1) -> None:
+    if frequency < 0:
+        raise ValueError("Negative frequencies are not allowed.")
+    SPEAKER_POWER.switch_to_output(True)  # Flase = ON, True = OFF
+    attempt = 0
+    # Try up to 3 times to play the sound
+    while attempt < 3:
+        try:
+            simpleio.tone(board.SPEAKER, frequency, duration)
+            # simpleio.tone(board.SPEAKER, frequency, duration=1, length=100)
+            break
+        except NameError:
+            pass
+        attempt += 1
+    SPEAKER_POWER.switch_to_output(False)  # Flase = ON, True = OFF
+
 # flashing LEDs routine
 def np_signal(color=0x220000, flashes=3, interval=.15, time_off=1):
-    # NP_POWER.switch_to_output(False)  # Flase = ON, True = OFF
+    NP_POWER.switch_to_output(False)  # Flase = ON, True = OFF
     for i in range(flashes):
         atime.sleep(interval * time_off)
         pixels.fill(color)
@@ -117,12 +133,12 @@ def update_alert():
         
 def goal_simulator():  #  A simple function to simulate a new goal when testing.
     add_goal = 0
-    rand_sequence = (1,3,9,7,2,8,0,6,5,4,)
+    rand_sequence = (1,3,9,7,2,8,0,6,5,4,0)
     rn = random.randint(0,9)
     rand_num = rand_sequence[rn]
     if rand_num < 3:
         add_goal = 1
-    print(rand_num, add_goal)
+    print('Rand Num: {}\nAdd Goal: {}\n'.format(rand_num, add_goal))
     return(add_goal)
 
 
@@ -186,14 +202,16 @@ def wifi_connect(choice=0):
     while not wifi.radio.ipv4_address:
         try:
             print("\nConnecting to {}".format(SSID))
-            wifi.radio.connect(SSID)
-            # wifi.radio.connect(SSID, PASSWORD)
+            # wifi.radio.connect(SSID)
+            wifi.radio.connect(SSID, PASSWORD)
         except ConnectionError as e:
+            np_signal(color=0x010000, flashes=3, interval=0.15, time_off=0.3)
             print("Connection Error: {}".format(e))
             print("Retrying in 10 seconds")
+            atime.sleep(10)
+
     print("Connected!\n")
     np_signal(color=0x000100, flashes=3, interval=0.15, time_off=0.3)
-    atime.sleep(10)
     gc.collect()
 
 
@@ -304,7 +322,7 @@ def wc_schedule(match_schedule, adjust_hours = 0):
         
         # home_team_goals = str(i['home_team']['goals'])
         
-        the_schedule = the_schedule + ('{:<5} {:>11} ({}) v ({}) {:<0}\n'.format(
+        the_schedule = the_schedule + ('{:<5} {:>13} ({}) v ({}) {:<0}\n'.format(
             str(game_time.time())[0:5],
             schedule_items[0],
             schedule_items[1],
@@ -317,19 +335,20 @@ def wc_schedule(match_schedule, adjust_hours = 0):
 
 
 # Function GETs current game stats.
-def wc_current(old_score):
+def wc_current(old_score, game_n):
     
     if wifi.radio.ipv4_gateway is None:
         import os
         try:
             with open("wc_current_match.json", "r") as fp:
+                # wc_two_matches.json / wc_current_match
                 x = fp.read()
                 # parse x:
                 current_match = json.loads(x)              
         except OSError as e:
             raise Exception("Could not read text file.")
     
-        game_stats = match_stats(current_match, old_score)
+        game_stats = match_stats(current_match, old_score, game_n)
 
         print('Using test data.\n')
 
@@ -341,31 +360,31 @@ def wc_current(old_score):
         print("{}matches/current\n".format(WORLD_CUP))
         current_match = requests.get("{}matches/current".format(WORLD_CUP), headers = json_header)
         
-        game_stats = match_stats(current_match.json(), old_score)
+        game_stats = match_stats(current_match.json(), old_score, game_n)
         
     return(game_stats)
 
 
 # This function parses information on the current match.
-def match_stats(current_match, old_score):
+def match_stats(current_match, old_score, game_n):
 
     try:
         # Parse current_match
         match_details = {
             # Match Title
-            "away_team" : current_match[0]['home_team']['name'], 
-            "home_team" : current_match[0]['away_team']['name'],      
-            "away_team_goals" : current_match[0]['home_team']['goals'],
-            "home_team_goals" : current_match[0]['away_team']['goals'],
+            "away_team" : current_match[game_n]['home_team']['name'], 
+            "home_team" : current_match[game_n]['away_team']['name'],      
+            "away_team_goals" : current_match[game_n]['home_team']['goals'],
+            "home_team_goals" : current_match[game_n]['away_team']['goals'],
             # General Info
-            "match_time" : current_match[0]['time'],
-            "location" : current_match[0]['location'],
-            "stage_name" : current_match[0]['stage_name'],
+            "match_time" : current_match[game_n]['time'],
+            "location" : current_match[game_n]['location'],
+            "stage_name" : current_match[game_n]['stage_name'],
             # Team Info
-            "away_tactics" : current_match[0]['home_team_lineup']['tactics'],
-            "away_penalties" : current_match[0]['home_team']['penalties'],
-            "home_tactics" : current_match[0]['away_team_lineup']['tactics'],
-            "home_penalties" : current_match[0]['away_team']['penalties']
+            "away_tactics" : current_match[game_n]['home_team_lineup']['tactics'],
+            "away_penalties" : current_match[game_n]['home_team']['penalties'],
+            "home_tactics" : current_match[game_n]['away_team_lineup']['tactics'],
+            "home_penalties" : current_match[game_n]['away_team']['penalties']
             }
             
             
@@ -426,7 +445,6 @@ def match_stats(current_match, old_score):
         game_penalties = ''
         
     
-    print('match_stats Old Goals: {}'.format(old_score))
     game_stats =  (game_info, match_title, game_score, game_tactics, game_penalties, old_score)    
     return(game_stats)
 
@@ -579,41 +597,74 @@ else:  # use live data
 # Logic to display game stats when a game is live.
 
 #TODO a vertical orientation to display favorite team details.
+def game_check():
+    return
 
-if y > 0:
-    def game_is_running():
-        return
-    inverted = False  # Display live score
-    DISPLAY_ROTATION = 270
+old_game_stats = ('FIRST RUN', '','')
+old_score = (0, 0)
+
+while True:
+    x, y, z, battery = update_data()
+    
+    if y < 0:
+        inverted = True
+        DISPLAY_ROTATION = 90
+        hours =  24
+        game_n = 1
+    if y > 0:
+        inverted = False
+        DISPLAY_ROTATION = 270
+        hours = 0
+        game_n = 0
+        
     display.rotation = DISPLAY_ROTATION
+    rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
     
-    refresh_time = GAME_ON_REFRESH  # seconds
-    # refresh_time = 20  # seconds
-    old_game_stats = ('FIRST RUN', '','')
-    old_score = (0, 0)
     
-    while True:        
-        game_stats = wc_current(old_score)
-        # game_stats = (game_info, match_title, game_score, game_tactics, game_penalties, old_goals)
-        
-        print('{}\n\n{}\n\n{}\n\n'.format(game_stats[0], game_stats, old_game_stats))
-        
-        if game_stats[2] == old_game_stats[2]:
-            gol = False
-            print('no new gol\n')
-        else:
-            print('NEW gol!\n')
-            gol = True
-        
-        if game_stats[0] == False:
-            game_info = game_stats[0]
-            break
-        
-        if game_stats == old_game_stats:
-            pass
-        
-        else:
-        
+    '''
+    display = board.DISPLAY
+    main_group = displayio.Group()
+    display.show(main_group)
+    display.rotation = DISPLAY_ROTATION
+    ''' 
+ 
+    # Get the current game stats
+    game_stats = wc_current(old_score, game_n)
+    # game_stats = (game_info, match_title, game_score, game_tactics, game_penalties, old_goals)
+
+    # check if there is a game running        
+    if game_stats[0] == False:
+        game_is_on = False
+    else:
+        game_is_on = True
+
+
+    def game_on_data():
+        return
+
+    # if a game is running
+    if game_is_on:
+        refresh_time = GAME_ON_REFRESH  # seconds
+        # refresh_time = 20  # seconds
+
+        # check if stats have changed
+        if old_game_stats == game_stats:
+            print_to_screen = False
+                    
+        else: 
+            print_to_screen = True
+            
+            if (
+                game_stats[2] != old_game_stats[2]  # game_score
+                or game_stats[3] != old_game_stats[3]  # game_tactics
+                or game_stats[4] != old_game_stats[4]  # game_penalties
+                ):  
+                gol = True
+            else:
+                gol = False
+            
+            print('is gol: {}\n'.format(gol))
+            
             game_info = game_stats[0]
             match_title = game_stats[1]
             game_score = game_stats[2]
@@ -631,10 +682,9 @@ if y > 0:
             page_footer = '{:0.1f}v'.format(battery)
             print(page_footer)
             
-            # Label Setup
             
-            # Make the background white
-            rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
+            def game_on_screen():
+                return
 
             game_page_title = label.Label(
                 SPARTAN_BOLD_16,
@@ -705,121 +755,104 @@ if y > 0:
             main_group.append(game_page_body1)
             main_group.append(game_page_body2)
             main_group.append(game_page_body3)
-            main_group.append(game_page_footer)
+            main_group.append(game_page_footer)                
 
-            # show the group
-            display.show(main_group)
-            
-            # refresh display
-            if gol:
-                update_alert()
-            try_refresh()
+    
+    if not game_is_on:
+        refresh_time = GAME_OFF_REFRESH  # seconds
+        print_to_screen = True
+        gol = False
         
+        def schedule_data():
+            return
+        
+        # game_info, match_title, game_score, game_tactics, game_penalties = wc_current()
+        game_info, the_schedule, page_title = world_cup(hours = hours)   
+        
+
+        page_footer = set_page_footer()
+
+        print(str(game_info) + '\n')
+        print(page_title)
+        print(the_schedule)
+        print(page_footer)
+        
+
+        # Make the background white
+        rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
+
+        schedule_page_title = label.Label(
+            SPARTAN_BOLD_16,
+            text=page_title,
+            color=0x000000,
+            anchored_position = (10, 10),
+            anchor_point = (0, 0),
+            base_alignment=True,
+        )
+
+        schedule_page_body = label.Label(
+            TERMINAL_FONT,
+            scale = 1,
+            text=the_schedule,
+            color=0x000000,
+            anchored_position = (WIDTH * 0.5 - 0, HEIGHT * 0.5 + 0),
+            anchor_point = (0.5, 0.5),
+            base_alignment=True,
+        )
+
+        schedule_page_footer = label.Label(
+            TERMINAL_FONT,
+            text=page_footer,
+            bg_color=0xFFFFFF,
+            color=0x000000,
+            anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 56),
+            anchor_point = (0.5, 0.5),
+            base_alignment=True,
+        )
+
+        main_group.append(rect)
+        main_group.append(schedule_page_title)
+        main_group.append(schedule_page_body)
+        main_group.append(schedule_page_footer)
+
+
+
+    if print_to_screen == True:
+        # show the group
+        display.show(main_group)
+
+        # refresh display
+        if gol:
+            SPEAKER_POWER.switch_to_output(True)  # Flase = OFF, True = ON
+            simpleio.tone(board.SPEAKER, 610, .2)
+            simpleio.tone(board.SPEAKER, 1220, .15)
+            SPEAKER_POWER.switch_to_output(False)  # Flase = OFF, True = ON
+        try_refresh()
+        # gol = False
+        if gol:
+            update_alert()
+
+    if print_to_screen == False:
+        pass
+
+
+    def go_to_sleep():
+        return
+        
+    if game_is_on:
         print('\nnext update in {}s\n'.format(refresh_time))
         atime.sleep(refresh_time)
-    
-    print('Exiting game on loop.\n')
-    
-else:
-    def show_me_the_schedule():
-        return
-    inverted = True  # Display schedule
-    DISPLAY_ROTATION = 90
-    refresh_time = GAME_OFF_REFRESH  # seconds
-    print('Game is on: {}'.format(inverted))
-    print('Refresh: {}s\n'.format(refresh_time))
-    
-    # game_info, match_title, game_score, game_tactics, game_penalties = wc_current()
-    game_info, the_schedule, page_title = world_cup(hours = 24)   
-    
-    print('\ninverted: {}\ngame_info: {}\n'.format(inverted, game_info))
-
-    #  inverted = False & game_info = False then get tomorrow's schedule
-
-if not game_info:  # when the game ends or no game is running
-    inverted = True  # This triggers the schedule routine.
-    DISPLAY_ROTATION = 270
-    refresh_time = GAME_OFF_REFRESH  # seconds
-    
-    print('Game is: {} / Info is: {}'.format(inverted, game_info))
-    print('Refresh: {}s\n'.format(refresh_time))
-
-    game_info, the_schedule, page_title = world_cup(hours = 0)
-    
-else:
-    print('Game is: {} / Info is: {}'.format(inverted, game_info))
-    print('Refresh: {}s\n'.format(refresh_time))
-    
-
-page_footer = set_page_footer()
-
-print(str(game_info) + '\n')
-print(page_title)
-print(the_schedule)
-print(page_footer)
-
-
-# Make the background white
-rect = Rect(0, 0, WIDTH, HEIGHT, fill=0xFFFFFF, outline=0xFFFFFF)
-
-schedule_page_title = label.Label(
-    SPARTAN_BOLD_16,
-    text=page_title,
-    color=0x000000,
-    anchored_position = (10, 10),
-    anchor_point = (0, 0),
-    base_alignment=True,
-)
-
-schedule_page_body = label.Label(
-    TERMINAL_FONT,
-    scale = 1,
-    text=the_schedule,
-    color=0x000000,
-    anchored_position = (WIDTH * 0.5 - 0, HEIGHT * 0.5 + 0),
-    anchor_point = (0.5, 0.5),
-    base_alignment=True,
-)
-
-schedule_page_footer = label.Label(
-    TERMINAL_FONT,
-    text=page_footer,
-    bg_color=0xFFFFFF,
-    color=0x000000,
-    anchored_position = (WIDTH * 0.5 + 0, HEIGHT * 0.5 + 56),
-    anchor_point = (0.5, 0.5),
-    base_alignment=True,
-)
-
-
-display = board.DISPLAY
-main_group = displayio.Group()
-display.show(main_group)
-display.rotation = DISPLAY_ROTATION
-
-main_group.append(rect)
-main_group.append(schedule_page_title)
-main_group.append(schedule_page_body)
-main_group.append(schedule_page_footer)
-
-# show the group
-display.show(main_group)
-
-# refresh display
-# update_alert()
-try_refresh()
-
-
-print('\nscreen refreshed\ngoing to sleep for {:0.0f} minutes.'.format(refresh_time/60))
-# Turn things off:
-wifi.radio.enabled = False
-NP_POWER.switch_to_output(False)  # Flase = ON, True = OFF
-# SPEAKER_POWER.switch_to_output(False)  # Flase = ON, True = OFF
-
-def go_to_sleep():
-    return
-# Create a an alarm 
-time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_time)
-# Exit the program, and then deep sleep until the alarm wakes us.
-alarm.exit_and_deep_sleep_until_alarms(time_alarm)
-# Does not return, so we never get here.
+        
+    if not game_is_on:
+        print('\nscreen refreshed\ngoing to sleep for {:0.0f} minutes.'.format(refresh_time/60))
+        
+        # Turn things off:
+        wifi.radio.enabled = False
+        NP_POWER.switch_to_output(False)  # Flase = ON, True = OFF
+        # SPEAKER_POWER.switch_to_output(False)  # Flase = ON, True = OFF
+        
+        # Create a an alarm 
+        time_alarm = alarm.time.TimeAlarm(monotonic_time=atime.monotonic() + refresh_time)
+        # Exit the program, and then deep sleep until the alarm wakes us.
+        alarm.exit_and_deep_sleep_until_alarms(time_alarm)
+        # Does not return, so we never get here.
