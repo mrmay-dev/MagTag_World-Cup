@@ -8,7 +8,7 @@ This script uses the amazing [World Cup JSON](https://github.com/estiens/world_c
 
 Once setup, select **Schedule** view or **Live Game** view by changing the orientation of the device. At the next update, the MagTag will check the orientation and display the selected view. For an immediate update simply click the reset button.
 
-## Game Schedule View - Upside Up:
+### Game Schedule View - Upside Up:
 
 <img src="upsideup.jpeg" alt="Game Schedule View" width="400"/>
 
