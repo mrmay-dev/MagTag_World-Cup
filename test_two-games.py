@@ -70,6 +70,7 @@ GAME_OFF_REFRESH = (10 * 60)  # in seconds
 # For future, change to timezone of cup host
 HOST_TIME = 3
 
+
 # Configurations ------
 
 # I2C Devices
